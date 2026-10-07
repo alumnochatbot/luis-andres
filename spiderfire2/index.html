@@ -1,1 +1,443 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spider-Man Web Swing Adventure</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        .comic-font {
+            font-family: 'Bangers', cursive;
+            letter-spacing: 1.5px;
+        }
+        canvas {
+            touch-action: none;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-4 md:p-6">
+
+    <header class="w-full max-w-4xl flex items-center justify-between bg-slate-900/80 backdrop-blur-md border border-red-500/30 px-6 py-4 rounded-2xl shadow-2xl mb-4">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-red-600 to-blue-600 flex items-center justify-center shadow-lg shadow-red-600/30 border border-red-400">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            </div>
+            <div>
+                <h1 class="comic-font text-2xl md:text-3xl text-red-500 drop-shadow-md">SPIDER-MAN: CITY SWING</h1>
+                <p class="text-xs text-slate-400">Evita los drones del Duende y recolecta emblemas</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="bg-slate-800/90 border border-slate-700 px-4 py-2 rounded-xl text-center">
+                <span class="block text-xs text-slate-400 uppercase tracking-wider">Puntuación</span>
+                <span id="scoreDisplay" class="comic-font text-xl text-yellow-400">0</span>
+            </div>
+            <div class="bg-slate-800/90 border border-slate-700 px-4 py-2 rounded-xl text-center">
+                <span class="block text-xs text-slate-400 uppercase tracking-wider">Vidas</span>
+                <span id="livesDisplay" class="comic-font text-xl text-red-500">❤️❤️❤️</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full max-w-4xl relative flex flex-col items-center">
+        <div id="gameContainer" class="relative w-full aspect-[16/9] max-h-[600px] rounded-3xl overflow-hidden border-2 border-slate-700 bg-slate-950">
+            <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+            
+            <!-- Start / Game Over Overlay -->
+            <div id="overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-10 transition-all duration-300">
+                <h2 id="overlayTitle" class="comic-font text-4xl md:text-6xl text-red-500 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] mb-2">¡SALVA NUEVA YORK!</h2>
+                <p id="overlaySubtitle" class="text-slate-300 text-sm md:text-base max-w-md mb-6">Mantén presionado o haz clic en la pantalla / barra espaciadora para lanzar telarañas y columpiarte. ¡Esquiva los drones enemigos!</p>
+                <button id="startBtn" class="comic-font px-8 py-3 bg-gradient-to-r from-red-600 to-blue-600 hover:from-red-500 hover:to-blue-500 text-white text-xl rounded-2xl shadow-xl shadow-red-600/40 border border-red-400 transform hover:scale-105 active:scale-95 transition-all cursor-pointer">
+                    INICIAR MISIÓN
+                </button>
+            </div>
+        </div>
+        
+        <!-- Controls Help Bar -->
+        <div class="w-full flex justify-between items-center mt-4 px-2 text-xs text-slate-400">
+            <span class="flex items-center gap-1">🖱️ Click / Toque / Espacio: <strong class="text-slate-200">Lanzar Telaraña / Volar</strong></span>
+            <span class="flex items-center gap-1">🎯 Objetivo: <strong class="text-slate-200">Sobrevivir y recolectar emblemas</strong></span>
+        </div>
+    </main>
+
+    <div id="msgModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <h3 id="modalTitle" class="comic-font text-2xl text-red-500 mb-2">¡Atención!</h3>
+            <p id="modalText" class="text-slate-300 text-sm mb-6">Mensaje del sistema...</p>
+            <button onclick="closeModal()" class="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white comic-font rounded-xl transition-all">Aceptar</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const livesDisplay = document.getElementById('livesDisplay');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlaySubtitle = document.getElementById('overlaySubtitle');
+        const startBtn = document.getElementById('startBtn');
+        const msgModal = document.getElementById('msgModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalText = document.getElementById('modalText');
+
+        let gameRunning = false;
+        let score = 0;
+        let lives = 3;
+        let animationFrameId;
+
+        // Game Entities
+        let spiderman = {
+            x: 100,
+            y: 200,
+            radius: 20,
+            vy: 0,
+            gravity: 0.4,
+            lift: -7.5,
+            swinging: false,
+            webTarget: null
+        };
+
+        let obstacles = [];
+        let tokens = [];
+        let buildings = [];
+        let particles = [];
+        let frameCount = 0;
+
+        function showMessage(title, text) {
+            modalTitle.textContent = title;
+            modalText.textContent = text;
+            msgModal.classList.remove('hidden');
+            msgModal.classList.add('flex');
+        }
+
+        function closeModal() {
+            msgModal.classList.remove('flex');
+            msgModal.classList.add('hidden');
+        }
+
+        // Resize canvas to fit container perfectly
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Initialize skyline background buildings
+        function initBuildings() {
+            buildings = [];
+            let currentX = 0;
+            while (currentX < canvas.width + 200) {
+                const width = 60 + Math.random() * 80;
+                const height = 150 + Math.random() * 250;
+                buildings.push({
+                    x: currentX,
+                    y: canvas.height - height,
+                    width: width,
+                    height: height,
+                    color: '#0b0f19',
+                    windows: generateWindows(width, height)
+                });
+                currentX += width - 10;
+            }
+        }
+
+        function generateWindows(bw, bh) {
+            let wins = [];
+            for (let wx = 10; wx < bw - 15; wx += 15) {
+                for (let wy = 15; wy < bh - 20; wy += 25) {
+                    if (Math.random() > 0.4) {
+                        wins.push({ x: wx, y: wy, lit: Math.random() > 0.3 });
+                    }
+                }
+            }
+            return wins;
+        }
+
+        function handleInput(e) {
+            if (!gameRunning) return;
+            e.preventDefault();
+            spiderman.vy = spiderman.lift;
+            spiderman.swinging = true;
+            // Create anchor point ahead
+            spiderman.webTarget = {
+                x: spiderman.x + 150,
+                y: spiderman.y - 100
+            };
+            
+            // Web particles effect
+            for(let i=0; i<5; i++) {
+                particles.push({
+                    x: spiderman.x,
+                    y: spiderman.y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    color: '#e2e8f0',
+                    life: 20
+                });
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') handleInput(e);
+        });
+        canvas.addEventListener('pointerdown', (e) => {
+            handleInput(e);
+        });
+
+        function startGame() {
+            score = 0;
+            lives = 3;
+            scoreDisplay.textContent = score;
+            livesDisplay.textContent = '❤️❤️❤️';
+            spiderman.x = 100;
+            spiderman.y = canvas.height / 2;
+            spiderman.vy = 0;
+            spiderman.swinging = false;
+            obstacles = [];
+            tokens = [];
+            particles = [];
+            frameCount = 0;
+            initBuildings();
+
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => overlay.style.display = 'none', 300);
+            gameRunning = true;
+            cancelAnimationFrame(animationFrameId);
+            gameLoop();
+        }
+
+        startBtn.addEventListener('click', startGame);
+
+        function gameOver() {
+            gameRunning = false;
+            overlay.style.display = 'flex';
+            setTimeout(() => overlay.classList.remove('opacity-0', 'pointer-events-none'), 10);
+            overlayTitle.textContent = '¡FIN DE LA MISIÓN!';
+            overlaySubtitle.textContent = `Puntuación final: ${score} puntos. ¡Nueva York te necesita de nuevo!`;
+            startBtn.textContent = 'JUGAR DE NUEVO';
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Draw Background & Skyline
+            ctx.fillStyle = '#090d16';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Move and draw buildings
+            for (let i = 0; i < buildings.length; i++) {
+                let b = buildings[i];
+                b.x -= 2.5; // Scroll speed
+
+                if (b.x + b.width < 0) {
+                    // Recycle building to the right
+                    let maxRightX = Math.max(...buildings.map(item => item.x + item.width));
+                    b.x = maxRightX - 10;
+                    b.width = 60 + Math.random() * 80;
+                    b.height = 150 + Math.random() * 250;
+                    b.y = canvas.height - b.height;
+                    b.windows = generateWindows(b.width, b.height);
+                }
+
+                // Draw building body
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(b.x, b.y, b.width, b.height);
+                ctx.strokeStyle = '#1e293b';
+                ctx.strokeRect(b.x, b.y, b.width, b.height);
+
+                // Draw windows
+                b.windows.forEach(w => {
+                    ctx.fillStyle = w.lit ? '#fbbf24' : '#1e293b';
+                    ctx.fillRect(b.x + w.x, b.y + w.y, 8, 12);
+                });
+            }
+
+            // 2. Update and Draw Spiderman Physics
+            spiderman.vy += spiderman.gravity;
+            spiderman.y += spiderman.vy;
+
+            // Floor & Ceiling bounds
+            if (spiderman.y > canvas.height - 40) {
+                spiderman.y = canvas.height - 40;
+                spiderman.vy = 0;
+            }
+            if (spiderman.y < 30) {
+                spiderman.y = 30;
+                spiderman.vy = 0;
+            }
+
+            // Draw Web Line if swinging
+            if (spiderman.swinging && spiderman.webTarget) {
+                ctx.strokeStyle = 'rgba(226, 232, 240, 0.7)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(spiderman.x, spiderman.y);
+                ctx.lineTo(spiderman.webTarget.x, spiderman.webTarget.y);
+                ctx.stroke();
+
+                // Fading target anchor
+                spiderman.webTarget.x -= 2.5;
+                if (Math.abs(spiderman.x - spiderman.webTarget.x) > 200) {
+                    spiderman.swinging = false;
+                }
+            }
+
+            // Draw Spider-Man Character Avatar
+            ctx.save();
+            ctx.translate(spiderman.x, spiderman.y);
+            // Tilt based on velocity
+            ctx.rotate(Math.min(Math.max(spiderman.vy * 0.05, -0.5), 0.5));
+
+            // Spider Body (Red & Blue stylized circle / suit)
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.arc(0, 0, spiderman.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#991b1b';
+            ctx.stroke();
+
+            // Eyes (Big white expressive spider eyes)
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(-6, -4, 6, 3, -0.3, 0, Math.PI * 2);
+            ctx.ellipse(6, -4, 6, 3, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Web chest symbol placeholder
+            ctx.strokeStyle = '#0284c7';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(0, -5); ctx.lineTo(0, 10);
+            ctx.moveTo(-5, 2); ctx.lineTo(5, 2);
+            ctx.stroke();
+
+            ctx.restore();
+
+            // 3. Spawns & Obstacles (Green Goblin Drones)
+            if (frameCount % 90 === 0) {
+                obstacles.push({
+                    x: canvas.width + 50,
+                    y: 80 + Math.random() * (canvas.height - 200),
+                    size: 28,
+                    speed: 4 + Math.random() * 2
+                });
+            }
+
+            // Spawns Tokens (Spider Emblems)
+            if (frameCount % 120 === 0) {
+                tokens.push({
+                    x: canvas.width + 50,
+                    y: 60 + Math.random() * (canvas.height - 180),
+                    radius: 14,
+                    speed: 3
+                });
+            }
+
+            // Update & Draw Obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.x -= obs.speed;
+
+                // Draw Drone / Pumpkin Bomb
+                ctx.fillStyle = '#16a34a';
+                ctx.beginPath();
+                ctx.arc(obs.x, obs.y, obs.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ca8a04';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Glowing red core
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(obs.x, obs.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Collision Detection with Spider-Man
+                let dx = spiderman.x - obs.x;
+                let dy = spiderman.y - obs.y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < spiderman.radius + obs.size - 6) {
+                    lives--;
+                    obstacles.splice(i, 1);
+                    updateLivesDisplay();
+                    if (lives <= 0) {
+                        gameOver();
+                        return;
+                    }
+                } else if (obs.x < -50) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Update & Draw Tokens
+            for (let i = tokens.length - 1; i >= 0; i--) {
+                let tok = tokens[i];
+                tok.x -= tok.speed;
+
+                // Draw Spider Emblem Token (Gold Star/Spider)
+                ctx.fillStyle = '#facc15';
+                ctx.beginPath();
+                ctx.arc(tok.x, tok.y, tok.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ca8a04';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#854d0e';
+                ctx.font = 'bold 12px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🕷️', tok.x, tok.y);
+
+                // Collision detection with Spider-Man
+                let tdx = spiderman.x - tok.x;
+                let tdy = spiderman.y - tok.y;
+                let tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+                if (tdist < spiderman.radius + tok.radius) {
+                    score += 10;
+                    scoreDisplay.textContent = score;
+                    tokens.splice(i, 1);
+                } else if (tok.x < -50) {
+                    tokens.splice(i, 1);
+                }
+            }
+
+            // Update & Draw Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 3, 3);
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            frameCount++;
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateLivesDisplay() {
+            let hearts = '';
+            for(let i=0; i<lives; i++) hearts += '❤️';
+            livesDisplay.textContent = hearts;
+        }
+    </script>
+</body>
+</html>
