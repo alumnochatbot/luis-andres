@@ -1,0 +1,3128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monster Brawl - Web Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #1a1a1a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; width: 100%; height: 100%; }
+        .hidden { display: none !important; }
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; }
+        .interactive { pointer-events: auto; }
+        .glass-panel { background: rgba(20, 20, 25, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas del Juego -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI: HUD -->
+    <div id="hud" class="ui-layer p-4 hidden">
+        <div class="flex justify-between items-start">
+            <div class="bg-gray-800/80 p-3 rounded-lg border border-gray-600">
+                <div class="flex items-center gap-3">
+                    <div class="text-xl font-bold text-blue-400">Nivel <span id="ui-level">1</span></div>
+                    <span id="ui-diff-badge" class="px-2 py-0.5 rounded text-xs font-bold uppercase">NORMAL</span>
+                </div>
+                <div class="w-64 h-3 bg-gray-700 rounded-full mt-2 overflow-hidden">
+                    <div id="ui-xp-bar" class="h-full bg-blue-500 w-0 transition-all duration-200"></div>
+                </div>
+            </div>
+            <div class="bg-gray-800/80 p-3 rounded-lg border border-gray-600 text-right">
+                <div class="text-lg font-bold text-red-400">HP: <span id="ui-hp">100</span>/<span id="ui-max-hp">100</span></div>
+                <div class="text-sm text-gray-300 mt-1">Tiempo: <span id="ui-time">0:00</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI: Menú Principal -->
+    <div id="main-menu" class="ui-layer interactive items-center justify-center bg-black/80">
+        <div class="glass-panel p-8 rounded-2xl text-center max-w-lg w-full mx-4">
+            <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500 mb-2 font-black tracking-wide">MONSTER BRAWL</h1>
+            <p class="text-gray-300 mb-6 font-medium">Sobrevive a la horda con tus monstruos favoritos. Usa WASD o Flechas para moverte. El ataque es automático.</p>
+            
+            <div class="text-gray-400 text-xs mb-4 font-semibold uppercase tracking-wider">Selecciona tu Dificultad</div>
+            <div class="flex flex-col gap-3 w-full mb-6">
+                <button id="btn-start-normal" class="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 text-white font-bold rounded-xl text-lg transition-all transform hover:scale-102 shadow-lg shadow-green-900/30 border border-green-500/20 text-left pl-5">
+                    🟢 Modo Normal
+                    <span class="block text-xs font-normal opacity-85 mt-0.5">La experiencia equilibrada de supervivencia.</span>
+                </button>
+                <button id="btn-start-dificil" class="w-full px-6 py-3 bg-gradient-to-r from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white font-bold rounded-xl text-lg transition-all transform hover:scale-102 shadow-lg shadow-orange-900/30 border border-orange-500/20 text-left pl-5">
+                    🟠 Modo Difícil (x1.5 Pts)
+                    <span class="block text-xs font-normal opacity-85 mt-0.5">Enemigos más rápidos; el 25% dispara plasma (-3 HP).</span>
+                </button>
+                <button id="btn-start-experto" class="w-full px-6 py-3 bg-gradient-to-r from-red-600 to-rose-500 hover:from-red-500 hover:to-rose-400 text-white font-bold rounded-xl text-lg transition-all transform hover:scale-102 shadow-lg shadow-red-900/30 border border-red-500/20 text-left pl-5">
+                    🔴 Modo Experto (x2.0 Pts)
+                    <span class="block text-xs font-normal opacity-85 mt-0.5">Disparos constantes y embestidas rápidas y furiosas.</span>
+                </button>
+            </div>
+
+            <button id="btn-shop" class="w-full px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl text-md transition-transform transform hover:scale-105 border border-gray-600 flex items-center justify-center gap-2">
+                <svg class="w-5 h-5 fill-current text-blue-400" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1010 10A10 10 0 0012 2zm1 14h-2v-2h2zm0-4h-2V7h2z"/></svg>
+                Tienda de Skins
+            </button>
+        </div>
+    </div>
+
+    <!-- UI: Subir de Nivel (Draft) -->
+    <div id="level-up-screen" class="ui-layer interactive items-center justify-center bg-black/80 hidden">
+        <div class="text-center w-full max-w-4xl px-4 h-[90vh] overflow-y-auto py-8">
+            <h2 class="text-4xl font-bold text-yellow-400 mb-2">¡NIVEL ALCANZADO!</h2>
+            <p class="text-gray-300 mb-8">Selecciona una mejora estratégica</p>
+            <div id="draft-options" class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                <!-- Las opciones se inyectan via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- UI: Game Over -->
+    <div id="game-over-screen" class="ui-layer interactive items-center justify-center bg-red-900/90 hidden">
+        <div class="glass-panel p-10 rounded-2xl text-center">
+            <h2 class="text-5xl font-bold text-white mb-4">HAS CAÍDO</h2>
+            <p class="text-xl text-red-200 mb-2">Sobreviviste: <span id="go-time" class="font-bold text-white"></span></p>
+            <p class="text-xl text-red-200 mb-2">Nivel Alcanzado: <span id="go-level" class="font-bold text-white"></span></p>
+            <div id="go-points" class="text-2xl text-yellow-400 mb-8 font-bold">Puntos Obtenidos: </div>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button id="btn-restart" class="px-6 py-4 bg-white text-red-900 hover:bg-gray-200 font-bold rounded-xl text-xl transition-transform transform hover:scale-105">
+                    Reintentar
+                </button>
+                <button id="btn-to-shop-from-go" class="px-6 py-4 bg-blue-600 text-white hover:bg-blue-500 font-bold rounded-xl text-xl transition-transform transform hover:scale-105 shadow-lg shadow-blue-500/30">
+                    Tienda
+                </button>
+                <button id="btn-to-menu" class="px-6 py-4 bg-gray-800 text-white hover:bg-gray-700 border border-gray-600 font-bold rounded-xl text-xl transition-transform transform hover:scale-105">
+                    Menú
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI: Tienda -->
+    <div id="shop-screen" class="ui-layer interactive items-center justify-center bg-black/95 hidden">
+        <div class="glass-panel p-10 rounded-2xl text-center w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+            <h2 class="text-4xl font-bold text-blue-400 mb-2">TIENDA DE SKINS</h2>
+            <p class="text-xl text-gray-300 mb-8">Puntos Totales: <span id="shop-points" class="font-bold text-yellow-400 text-3xl">0</span></p>
+            <div id="shop-items" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
+                <!-- Las opciones se inyectan via JS -->
+            </div>
+            <button id="btn-close-shop" class="px-8 py-4 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded-xl text-xl transition-transform transform hover:scale-105">
+                Volver al Menú
+            </button>
+        </div>
+    </div>
+
+<script>
+/**
+ * STREAMING_CHUNK: Initializing state variables and properties
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- SISTEMA DE RESOLUCIÓN Y RESIZE ---
+let width, height;
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- ESTADO GLOBAL ---
+const GAME_STATE = {
+    MENU: 0,
+    PLAYING: 1,
+    LEVEL_UP: 2,
+    GAME_OVER: 3,
+    SHOP: 4
+};
+let currentState = GAME_STATE.MENU;
+let currentDifficulty = 'normal'; // 'normal', 'dificil', 'experto'
+let lastTime = 0;
+let gameTimer = 0;
+let animationTime = 0; 
+
+// --- SISTEMA DE PUNTOS Y SKINS ---
+let totalPoints = 0;
+let unlockedSkins = ['verde'];
+let currentSkinId = 'verde';
+
+// Base de datos de skins enriquecida con representaciones SVG para la tienda
+const skinsDB = [
+    { 
+        id: 'verde', 
+        name: 'Slime Verde', 
+        color: '#4ade80', 
+        price: 0,
+        svg: `<svg viewBox="0 0 64 64" class="w-16 h-16">
+            <defs>
+                <radialGradient id="grad-verde" cx="50%" cy="30%" r="50%">
+                    <stop offset="0%" stop-color="#4ade80" />
+                    <stop offset="100%" stop-color="#166534" />
+                </radialGradient>
+            </defs>
+            <ellipse cx="32" cy="46" rx="20" ry="6" fill="rgba(0,0,0,0.3)" />
+            <path d="M12 40 C 12 18, 52 18, 52 40 C 52 48, 44 48, 32 48 C 20 48, 12 48, 12 40 Z" fill="url(#grad-verde)" />
+            <circle cx="24" cy="34" r="4.5" fill="white" />
+            <circle cx="24" cy="34" r="2" fill="black" />
+            <circle cx="25.5" cy="32.5" r="1" fill="white" />
+            <circle cx="40" cy="34" r="4.5" fill="white" />
+            <circle cx="40" cy="34" r="2" fill="black" />
+            <circle cx="41.5" cy="32.5" r="1" fill="white" />
+            <path d="M28 40 Q32 43 36 40" stroke="white" stroke-width="2" stroke-linecap="round" fill="none" />
+            <ellipse cx="20" cy="37" rx="2.5" ry="1.5" fill="#f87171" opacity="0.6" />
+            <ellipse cx="44" cy="37" rx="2.5" ry="1.5" fill="#f87171" opacity="0.6" />
+        </svg>`
+    },
+    { 
+        id: 'rojo', 
+        name: 'Lava Caliente', 
+        color: '#ef4444', 
+        price: 1000,
+        svg: `<svg viewBox="0 0 64 64" class="w-16 h-16">
+            <defs>
+                <radialGradient id="grad-rojo" cx="50%" cy="30%" r="50%">
+                    <stop offset="0%" stop-color="#f97316" />
+                    <stop offset="100%" stop-color="#7f1d1d" />
+                </radialGradient>
+            </defs>
+            <ellipse cx="32" cy="46" rx="22" ry="6" fill="rgba(0,0,0,0.4)" />
+            <path d="M10 40 C 8 20, 56 20, 54 40 C 54 46, 44 48, 32 48 C 20 48, 10 46, 10 40 Z" fill="url(#grad-rojo)" />
+            <path d="M16 38 Q22 30 26 38" stroke="#facc15" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.8" />
+            <path d="M38 38 Q42 32 46 38" stroke="#facc15" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.8" />
+            <path d="M20 28 L28 32 M44 28 L36 32" stroke="#facc15" stroke-width="2" stroke-linecap="round" />
+            <circle cx="24" cy="33" r="3.5" fill="#facc15" />
+            <circle cx="24" cy="33" r="1.5" fill="#7f1d1d" />
+            <circle cx="40" cy="33" r="3.5" fill="#facc15" />
+            <circle cx="40" cy="33" r="1.5" fill="#7f1d1d" />
+            <path d="M28 41 Q32 37 36 41" stroke="#facc15" stroke-width="2" fill="none" />
+        </svg>`
+    },
+    { 
+        id: 'azul', 
+        name: 'Hielo Profundo', 
+        color: '#3b82f6', 
+        price: 3000,
+        svg: `<svg viewBox="0 0 64 64" class="w-16 h-16">
+            <defs>
+                <radialGradient id="grad-azul" cx="50%" cy="30%" r="50%">
+                    <stop offset="0%" stop-color="#60a5fa" />
+                    <stop offset="100%" stop-color="#1e3a8a" />
+                </radialGradient>
+            </defs>
+            <ellipse cx="32" cy="46" rx="20" ry="6" fill="rgba(0,0,0,0.3)" />
+            <polygon points="20,18 26,26 14,28" fill="#93c5fd" />
+            <polygon points="32,12 37,24 27,24" fill="#bfdbfe" />
+            <polygon points="44,18 50,28 38,26" fill="#93c5fd" />
+            <path d="M12 40 C 12 22, 52 22, 52 40 C 52 48, 44 48, 32 48 C 20 48, 12 48, 12 40 Z" fill="url(#grad-azul)" />
+            <path d="M16 32 L22 30" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+            <circle cx="24" cy="34" r="4.5" fill="white" />
+            <circle cx="24" cy="34" r="2" fill="#1d4ed8" />
+            <circle cx="40" cy="34" r="4.5" fill="white" />
+            <circle cx="40" cy="34" r="2" fill="#1d4ed8" />
+            <line x1="28" y1="40" x2="36" y2="33" stroke="white" stroke-width="2" stroke-linecap="round" />
+        </svg>`
+    },
+    { 
+        id: 'purpura', 
+        name: 'Materia Oscura', 
+        color: '#9333ea', 
+        price: 6000,
+        svg: `<svg viewBox="0 0 64 64" class="w-16 h-16">
+            <defs>
+                <radialGradient id="grad-purpura" cx="50%" cy="30%" r="50%">
+                    <stop offset="0%" stop-color="#c084fc" />
+                    <stop offset="100%" stop-color="#3b0764" />
+                </radialGradient>
+            </defs>
+            <ellipse cx="32" cy="46" rx="22" ry="6" fill="rgba(0,0,0,0.5)" />
+            <path d="M10 40 C 10 16, 54 16, 54 40 C 54 49, 42 50, 32 50 C 22 50, 10 49, 10 40 Z" fill="url(#grad-purpura)" />
+            <circle cx="16" cy="20" r="2.5" fill="#d8b4fe" />
+            <circle cx="48" cy="22" r="1.5" fill="#d8b4fe" />
+            <circle cx="32" cy="32" r="8" fill="#f43f5e" />
+            <circle cx="32" cy="32" r="3" fill="white" />
+            <circle cx="34" cy="30" r="1" fill="white" />
+            <path d="M24 26 Q32 23 40 26" stroke="#3b0764" stroke-width="3" stroke-linecap="round" fill="none" />
+            <path d="M26 41 Q32 44 38 41" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" fill="none" />
+        </svg>`
+    },
+    { 
+        id: 'dorado', 
+        name: 'Rey Dorado', 
+        color: '#eab308', 
+        price: 10000,
+        svg: `<svg viewBox="0 0 64 64" class="w-16 h-16">
+            <defs>
+                <linearGradient id="grad-dorado" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#fef08a" />
+                    <stop offset="50%" stop-color="#eab308" />
+                    <stop offset="100%" stop-color="#854d0e" />
+                </linearGradient>
+            </defs>
+            <ellipse cx="32" cy="46" rx="20" ry="6" fill="rgba(0,0,0,0.3)" />
+            <polygon points="20,24 24,14 32,20 40,14 44,24" fill="#fbbf24" stroke="#78350f" stroke-width="1.5" />
+            <circle cx="32" cy="20" r="2.5" fill="#f43f5e" />
+            <path d="M12 40 C 12 18, 52 18, 52 40 C 52 48, 44 48, 32 48 C 20 48, 12 48, 12 40 Z" fill="url(#grad-dorado)" />
+            <circle cx="23" cy="33" r="5" fill="none" stroke="#78350f" stroke-width="2.5" />
+            <circle cx="41" cy="33" r="5" fill="none" stroke="#78350f" stroke-width="2.5" />
+            <line x1="28" y1="33" x2="36" y2="33" stroke="#78350f" stroke-width="2" />
+            <circle cx="24" cy="33" r="1.5" fill="black" />
+            <circle cx="40" cy="33" r="1.5" fill="black" />
+            <path d="M26 39 Q32 43 38 39" stroke="#78350f" stroke-linecap="round" stroke-width="2" fill="none" />
+        </svg>`
+    }
+];
+
+// --- TABLA DE EXPERIENCIA PERSONALIZADA ---
+function getXpForLevel(lvl) {
+    const table = {
+        2: 1, 3: 4, 4: 8, 5: 13, 6: 19, 7: 26, 8: 34, 9: 43, 10: 53,
+        11: 64, 12: 76, 13: 89, 14: 103, 15: 118, 16: 134, 17: 151, 18: 169, 19: 188, 20: 208,
+        21: 229, 22: 251, 23: 274, 24: 298, 25: 323, 26: 349, 27: 376, 28: 404, 29: 433, 30: 463,
+        31: 494, 32: 526, 33: 559, 34: 593, 35: 628, 36: 664, 37: 701, 38: 739, 39: 778, 40: 818
+    };
+
+    if (lvl in table) return table[lvl];
+    return Math.floor(818 + (lvl - 40) * 50);
+}
+
+// --- INPUT (SOPORTE NORMALIZADO) ---
+const keys = {
+    w: false, a: false, s: false, d: false,
+    arrowup: false, arrowdown: false, arrowleft: false, arrowright: false
+};
+
+window.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    if (key in keys) keys[key] = true;
+});
+
+window.addEventListener('keyup', e => {
+    const key = e.key.toLowerCase();
+    if (key in keys) keys[key] = false;
+});
+
+// --- SISTEMA DE ENTRADA TÁCTIL (JOYSTICK VIRTUAL) ---
+let touchActive = false;
+let touchStartX = 0;
+let touchStartY = 0;
+let touchMoveX = 0;
+let touchMoveY = 0;
+
+window.addEventListener('touchstart', e => {
+    if (currentState !== GAME_STATE.PLAYING) return;
+    if (e.target.closest('button')) return;
+    touchActive = true;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchMoveX = touchStartX;
+    touchMoveY = touchStartY;
+}, { passive: true });
+
+window.addEventListener('touchmove', e => {
+    if (!touchActive) return;
+    touchMoveX = e.touches[0].clientX;
+    touchMoveY = e.touches[0].clientY;
+}, { passive: true });
+
+window.addEventListener('touchend', () => { touchActive = false; }, { passive: true });
+
+function distSq(x1, y1, x2, y2) { return (x2-x1)**2 + (y2-y1)**2; }
+function randRange(min, max) { return Math.random() * (max - min) + min; }
+
+// --- SPATIAL HASHING ---
+class SpatialGrid {
+    constructor(cellSize) {
+        this.cellSize = cellSize;
+        this.cells = new Map();
+    }
+    clear() { this.cells.clear(); }
+    hash(x, y) { return `${Math.floor(x / this.cellSize)},${Math.floor(y / this.cellSize)}`; }
+    insert(entity) {
+        const key = this.hash(entity.x, entity.y);
+        if (!this.cells.has(key)) this.cells.set(key, []);
+        this.cells.get(key).push(entity);
+    }
+    getNearby(x, y, radius) {
+        const result = [];
+        const minKeyX = Math.floor((x - radius) / this.cellSize);
+        const maxKeyX = Math.floor((x + radius) / this.cellSize);
+        const minKeyY = Math.floor((y - radius) / this.cellSize);
+        const maxKeyY = Math.floor((y + radius) / this.cellSize);
+        for (let cx = minKeyX; cx <= maxKeyX; cx++) {
+            for (let cy = minKeyY; cy <= maxKeyY; cy++) {
+                const cell = this.cells.get(`${cx},${cy}`);
+                if (cell) result.push(...cell);
+            }
+        }
+        return result;
+    }
+}
+
+class ObjectPool {
+    constructor(createFn) {
+        this.pool = [];
+        this.createFn = createFn;
+    }
+    get() { return this.pool.length > 0 ? this.pool.pop() : this.createFn(); }
+    release(obj) { this.pool.push(obj); }
+}
+
+function getClosestEnemy(source, maxRange = 600) {
+    let closest = null;
+    let minDistSq = maxRange * maxRange;
+    for (let e of enemies) {
+        if (!e.active) continue;
+        let dSq = distSq(source.x, source.y, e.x, e.y);
+        if (dSq < minDistSq) {
+            minDistSq = dSq;
+            closest = e;
+        }
+    }
+    return closest;
+}
+
+/**
+ * STREAMING_CHUNK: Instantiating weapons, pools, and custom class upgrades
+ */
+
+// --- CLASES DE ARMAS Y SISTEMA DE MEJORAS DE NIVEL ---
+
+class RapidEggsWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Rapid Eggs";
+        this.level = 1;
+        this.cooldown = 0.5;
+        this.timer = 0;
+        this.baseDamage = 5;
+        this.projectilesCount = 1;
+        this.pierce = 1;
+        this.eggsEggsEggs = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.projectilesCount = 2; // +huevo
+        else if (lvl === 3) this.projectilesCount = 3; // +huevo
+        else if (lvl === 4) this.baseDamage += 3; // +daño
+        else if (lvl === 5) this.cooldown *= 0.5; // Rapid-Fire
+        else if (lvl === 6) this.projectilesCount = 4; // +huevo
+        else if (lvl === 7) this.baseDamage += 4; // +daño
+        else if (lvl === 8) this.pierce += 2; // atraviesa enemigos
+        else if (lvl === 9) this.baseDamage += 10; // +10 daño
+        else if (lvl === 10) { this.cooldown *= 0.3; this.eggsEggsEggs = true; } // EGGS EGGS EGGS
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 600);
+        if (closest) {
+            let dx = closest.x - this.player.x;
+            let dy = closest.y - this.player.y;
+            let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+            
+            for (let i = 0; i < this.projectilesCount; i++) {
+                let angleOffset = (i - (this.projectilesCount - 1) / 2) * 0.15;
+                let c = Math.cos(angleOffset);
+                let s = Math.sin(angleOffset);
+                let vx = (dx/dist)*c - (dy/dist)*s;
+                let vy = (dx/dist)*s + (dy/dist)*c;
+
+                let isCrit = Math.random() < this.player.critChance;
+                let damage = this.baseDamage * this.player.baseDamageMult;
+                if (isCrit) damage *= this.player.critMult;
+                if (this.eggsEggsEggs) damage *= 1.5;
+
+                const proj = projectilePool.get();
+                let color = this.eggsEggsEggs ? '#fbbf24' : '#fef08a';
+                let size = this.eggsEggsEggs ? 10 : 6;
+                proj.spawn(this.player.x, this.player.y, vx, vy, 450, damage, size, color, isCrit, this.pierce);
+                
+                if (this.eggsEggsEggs) {
+                    proj.customOnHit = (enemy) => {
+                        triggerBubblePop({ x: proj.x, y: proj.y, damage: proj.damage, level: 3, isCrit: proj.isCrit });
+                        proj.active = false;
+                    };
+                }
+                projectiles.push(proj);
+            }
+        }
+    }
+}
+
+class BoomerangPizzaWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Boomerang Pizza";
+        this.level = 1;
+        this.cooldown = 1.2;
+        this.timer = 0;
+        this.baseDamage = 8;
+        this.pizzaCount = 1;
+        this.speed = 350;
+        this.radiusScale = 1.0;
+        this.comboFinal = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.speed += 100; // +velocidad
+        else if (lvl === 3) this.baseDamage += 4; // +daño
+        else if (lvl === 4) this.pizzaCount = 2; // +pizza
+        else if (lvl === 5) this.radiusScale = 1.5; // pizzas grandes
+        else if (lvl === 6) this.pizzaCount = 3; // +pizza
+        else if (lvl === 7) this.speed += 100; // +velocidad
+        else if (lvl === 8) this.baseDamage += 6; // +daño
+        else if (lvl === 9) this.pizzaCount = 4; // +pizza
+        else if (lvl === 10) this.comboFinal = true; // combo final
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 600);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+        for (let i = 0; i < this.pizzaCount; i++) {
+            let offsetAngle = (i - (this.pizzaCount - 1) / 2) * 0.25;
+            let c = Math.cos(offsetAngle);
+            let s = Math.sin(offsetAngle);
+            let vx = (dx/dist)*c - (dy/dist)*s;
+            let vy = (dx/dist)*s + (dy/dist)*c;
+
+            let isCrit = Math.random() < this.player.critChance;
+            let damage = this.baseDamage * this.player.baseDamageMult;
+            if (isCrit) damage *= this.player.critMult;
+
+            const proj = projectilePool.get();
+            let size = 12 * this.radiusScale;
+            proj.spawn(this.player.x, this.player.y, vx, vy, this.speed, damage, size, '#f59e0b', isCrit, 10);
+            proj.life = 2.0;
+            proj.state = 'outgoing';
+            proj.angle = 0;
+            proj.player = this.player;
+            proj.comboFinal = this.comboFinal;
+
+            proj.customUpdate = function(dtSec) {
+                proj.angle += 12 * dtSec;
+                if (proj.state === 'outgoing') {
+                    proj.x += proj.vx * proj.speed * dtSec;
+                    proj.y += proj.vy * proj.speed * dtSec;
+                    if (proj.life < 1.1) proj.state = 'returning';
+                } else {
+                    let rdx = proj.player.x - proj.x;
+                    let rdy = proj.player.y - proj.y;
+                    let rdist = Math.sqrt(rdx*rdx + rdy*rdy) || 1;
+                    proj.x += (rdx/rdist) * proj.speed * 1.5 * dtSec;
+                    proj.y += (rdy/rdist) * proj.speed * 1.5 * dtSec;
+                    if (rdist < 25) {
+                        if (proj.comboFinal) {
+                            for (let j = 0; j < 6; j++) {
+                                let ang = (j / 6) * Math.PI * 2;
+                                const slice = projectilePool.get();
+                                slice.spawn(proj.x, proj.y, Math.cos(ang), Math.sin(ang), 300, proj.damage * 0.5, 6, '#ef4444', false, 1);
+                                slice.life = 0.5;
+                                projectiles.push(slice);
+                            }
+                        }
+                        proj.active = false;
+                    }
+                }
+                proj.life -= dtSec;
+                if (proj.life <= 0) proj.active = false;
+            };
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.rotate(proj.angle);
+                ctxCanvas.fillStyle = '#fef08a';
+                ctxCanvas.strokeStyle = '#ea580c';
+                ctxCanvas.lineWidth = 2;
+                ctxCanvas.beginPath();
+                ctxCanvas.moveTo(0, -proj.radius);
+                ctxCanvas.lineTo(-proj.radius * 0.8, proj.radius);
+                ctxCanvas.lineTo(proj.radius * 0.8, proj.radius);
+                ctxCanvas.closePath();
+                ctxCanvas.fill();
+                ctxCanvas.stroke();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- BOOMING BUBBLES 🫧 ---
+class BoomingBubblesWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Booming Bubbles";
+        this.level = 1;
+        this.cooldown = 1.5;
+        this.timer = 0;
+        this.baseDamage = 6;
+        this.size = 14;
+        this.pierce = 1;
+        this.dispersion = 1;
+        this.storm = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.baseDamage += 3; // +daño
+        else if (lvl === 3) this.baseDamage += 3; // +daño
+        else if (lvl === 4) this.size *= 1.5; // burbujas grandes
+        else if (lvl === 5) this.pierce += 2; // atraviesa enemigos
+        else if (lvl === 6) this.dispersion = 3; // dispersión
+        else if (lvl === 7) this.baseDamage += 5; // +daño
+        else if (lvl === 8) this.size *= 1.3; // más tamaño
+        else if (lvl === 9) this.cooldown *= 0.8; // +velocidad (frecuencia)
+        else if (lvl === 10) { this.cooldown = 0.15; this.storm = true; } // Bubble Storm
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 600);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+        for (let i = 0; i < this.dispersion; i++) {
+            let offsetAngle = (i - (this.dispersion - 1) / 2) * 0.25;
+            let c = Math.cos(offsetAngle);
+            let s = Math.sin(offsetAngle);
+            let vx = (dx/dist)*c - (dy/dist)*s;
+            let vy = (dx/dist)*s + (dy/dist)*c;
+
+            let isCrit = Math.random() < this.player.critChance;
+            let damage = this.baseDamage * this.player.baseDamageMult;
+            if (isCrit) damage *= this.player.critMult;
+
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, vx, vy, 180, damage, this.size, '#60a5fa', isCrit, this.pierce);
+            proj.life = 2.5;
+            proj.level = this.level;
+
+            proj.customUpdate = function(dtSec) {
+                proj.x += proj.vx * proj.speed * dtSec;
+                proj.y += proj.vy * proj.speed * dtSec;
+                proj.x += Math.sin(proj.life * 8) * 1.5;
+                proj.life -= dtSec;
+                if (proj.life <= 0) {
+                    triggerBubblePop(proj);
+                    proj.active = false;
+                }
+            };
+            proj.customOnHit = function() {
+                triggerBubblePop(proj);
+                proj.active = false;
+            };
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                let grad = ctxCanvas.createRadialGradient(-3, -3, 1, 0, 0, proj.radius);
+                grad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                grad.addColorStop(1, 'rgba(59, 130, 246, 0.9)');
+                ctxCanvas.fillStyle = grad;
+                ctxCanvas.beginPath();
+                ctxCanvas.arc(0, 0, proj.radius, 0, Math.PI * 2);
+                ctxCanvas.fill();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+function triggerBubblePop(proj) {
+    let aoeRadius = 80 + (proj.level * 15);
+    let popDmg = proj.damage * 1.5;
+    spawnFloatingText(proj.x, proj.y, "🫧 POP!", false);
+    
+    visualEffects.push({
+        x: proj.x, y: proj.y, radius: 10, maxRadius: aoeRadius, life: 0.2, maxLife: 0.2, color: 'rgba(96, 165, 250, 0.5)'
+    });
+
+    for (let e of enemies) {
+        if (!e.active) continue;
+        let dSq = distSq(proj.x, proj.y, e.x, e.y);
+        if (dSq <= aoeRadius * aoeRadius) {
+            let dx = e.x - proj.x;
+            let dy = e.y - proj.y;
+            let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+            e.takeDamage(popDmg, proj.isCrit, dx/dist, dy/dist);
+        }
+    }
+}
+
+// --- BOUNCY SLIME 🟢 ---
+class BouncySlimeWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Bouncy Slime";
+        this.level = 1;
+        this.cooldown = 1.6;
+        this.timer = 0;
+        this.baseDamage = 7;
+        this.life = 3.0;
+        this.speed = 320;
+        this.slimeCount = 1;
+        this.bonusBounces = 0;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.baseDamage += 3; // +daño
+        else if (lvl === 3) this.life += 1.5; // +duración
+        else if (lvl === 4) this.speed += 100; // +velocidad
+        else if (lvl === 5) this.slimeCount = 3; // +2 slimes (total 3)
+        else if (lvl === 6) this.baseDamage += 4; // +daño
+        else if (lvl === 7) this.life += 1.5; // +duración
+        else if (lvl === 8) this.baseDamage += 5; // +daño
+        else if (lvl === 9) this.speed += 100; // +velocidad
+        else if (lvl === 10) { this.slimeCount = 5; this.bonusBounces = 5; } // +2 slimes y rebotes adicionales
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 600);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+        for (let i = 0; i < this.slimeCount; i++) {
+            let offsetAngle = (i - (this.slimeCount - 1) / 2) * 0.2;
+            let c = Math.cos(offsetAngle);
+            let s = Math.sin(offsetAngle);
+            let vx = (dx/dist)*c - (dy/dist)*s;
+            let vy = (dx/dist)*s + (dy/dist)*c;
+
+            let isCrit = Math.random() < this.player.critChance;
+            let damage = this.baseDamage * this.player.baseDamageMult;
+            if (isCrit) damage *= this.player.critMult;
+
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, vx, vy, this.speed, damage, 10, '#22c55e', isCrit, 1);
+            proj.bouncesLeft = 2 + this.bonusBounces;
+            proj.life = this.life;
+
+            proj.customUpdate = function(dtSec) {
+                proj.x += proj.vx * proj.speed * dtSec;
+                proj.y += proj.vy * proj.speed * dtSec;
+                proj.life -= dtSec;
+                if (proj.life <= 0) proj.active = false;
+            };
+
+            proj.customOnHit = function(enemy) {
+                if (proj.bouncesLeft > 0) {
+                    proj.bouncesLeft--;
+                    let next = null;
+                    let minDist = Infinity;
+                    for (let e of enemies) {
+                        if (!e.active || e === enemy) continue;
+                        let d = distSq(proj.x, proj.y, e.x, e.y);
+                        if (d < minDist && d < 300*300) {
+                            minDist = d;
+                            next = e;
+                        }
+                    }
+                    if (next) {
+                        let ndx = next.x - proj.x;
+                        let ndy = next.y - proj.y;
+                        let ndist = Math.sqrt(ndx*ndx + ndy*ndy) || 1;
+                        proj.vx = ndx / ndist;
+                        proj.vy = ndy / ndist;
+                        proj.hitTargets.clear();
+                    } else {
+                        proj.active = false;
+                    }
+                } else {
+                    proj.active = false;
+                }
+            };
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.fillStyle = '#4ade80';
+                ctxCanvas.strokeStyle = '#15803d';
+                ctxCanvas.lineWidth = 2;
+                ctxCanvas.beginPath();
+                ctxCanvas.arc(0, 0, proj.radius, 0, Math.PI * 2);
+                ctxCanvas.fill();
+                ctxCanvas.stroke();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- BUZZING BEES 🐝 ---
+class BuzzingBeesWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Buzzing Bees";
+        this.level = 1;
+        this.baseDamage = 4;
+        this.maxBees = 2;
+        this.pierce = 1;
+        this.speedMult = 1.0;
+        this.bees = [];
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.maxBees = 3; // +abeja
+        else if (lvl === 3) this.baseDamage += 2; // +daño
+        else if (lvl === 4) this.maxBees = 4; // +abeja
+        else if (lvl === 5) this.baseDamage += 10; // +10 daño
+        else if (lvl === 6) this.maxBees = 5; // +abeja
+        else if (lvl === 7) this.pierce += 2; // atraviesa enemigos
+        else if (lvl === 8) this.pierce = 999; // más penetración (infinita)
+        else if (lvl === 9) this.baseDamage += 5; // +daño
+        else if (lvl === 10) { this.maxBees = 10; this.speedMult = 2.0; } // Bee Swarm
+    }
+    update(dt) {
+        while (this.bees.length < this.maxBees) {
+            this.bees.push({
+                angle: Math.random() * Math.PI * 2,
+                distance: randRange(35, 65),
+                orbitSpeed: randRange(2, 5) * this.speedMult,
+                state: 'orbiting',
+                target: null,
+                x: this.player.x,
+                y: this.player.y,
+                attackTimer: 0
+            });
+        }
+        while (this.bees.length > this.maxBees) {
+            this.bees.pop();
+        }
+
+        this.bees.forEach(b => {
+            b.angle += b.orbitSpeed * dt;
+            if (b.state === 'orbiting') {
+                let tx = this.player.x + Math.cos(b.angle) * b.distance;
+                let ty = this.player.y + Math.sin(b.angle) * b.distance;
+                b.x += (tx - b.x) * 8 * dt;
+                b.y += (ty - b.y) * 8 * dt;
+
+                b.attackTimer -= dt;
+                if (b.attackTimer <= 0) {
+                    let enemy = getClosestEnemy(b, 250);
+                    if (enemy) {
+                        b.state = 'attacking';
+                        b.target = enemy;
+                    }
+                }
+            } else if (b.state === 'attacking') {
+                if (!b.target || !b.target.active) {
+                    b.state = 'returning';
+                    return;
+                }
+                let dx = b.target.x - b.x;
+                let dy = b.target.y - b.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 15) {
+                    let isCrit = Math.random() < this.player.critChance;
+                    let damage = this.baseDamage * this.player.baseDamageMult;
+                    if (isCrit) damage *= this.player.critMult;
+                    b.target.takeDamage(damage, isCrit, dx/(dist||1), dy/(dist||1));
+                    b.state = 'returning';
+                    b.attackTimer = randRange(1.0, 2.5);
+                } else {
+                    b.x += (dx/dist) * 350 * this.speedMult * dt;
+                    b.y += (dy/dist) * 350 * this.speedMult * dt;
+                }
+            } else if (b.state === 'returning') {
+                let dx = this.player.x - b.x;
+                let dy = this.player.y - b.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 40) {
+                    b.state = 'orbiting';
+                } else {
+                    b.x += (dx/(dist||1)) * 300 * dt;
+                    b.y += (dy/(dist||1)) * 300 * dt;
+                }
+            }
+        });
+    }
+    draw(ctxCanvas, camX, camY) {
+        this.bees.forEach(b => {
+            ctxCanvas.save();
+            ctxCanvas.translate(b.x - camX, b.y - camY);
+            ctxCanvas.fillStyle = '#eab308';
+            ctxCanvas.beginPath();
+            ctxCanvas.ellipse(0, 0, 7, 5, b.angle, 0, Math.PI * 2);
+            ctxCanvas.fill();
+            ctxCanvas.restore();
+        });
+    }
+}
+
+// --- CRAZY ACORNS 🌰 ---
+class CrazyAcornsWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Crazy Acorns";
+        this.level = 1;
+        this.cooldown = 1.4;
+        this.timer = 0;
+        this.baseDamage = 9;
+        this.acornsCount = 3;
+        this.speed = 380;
+        this.pierce = 1;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.acornsCount = 4; // +bellota
+        else if (lvl === 3) this.acornsCount = 5; // +bellota
+        else if (lvl === 4) this.baseDamage += 4; // +daño
+        else if (lvl === 5) this.speed += 120; // más velocidad
+        else if (lvl === 6) this.pierce += 1; // más penetración
+        else if (lvl === 7) this.speed += 100; // +velocidad
+        else if (lvl === 8) this.baseDamage += 6; // +daño
+        else if (lvl === 9) this.pierce += 1; // más penetración
+        else if (lvl === 10) this.cooldown = 0.25; // Rapid Fire
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 600);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let baseAngle = Math.atan2(dy, dx);
+
+        for (let i = 0; i < this.acornsCount; i++) {
+            let offsetAngle = (i - (this.acornsCount - 1) / 2) * 0.25;
+            let ang = baseAngle + offsetAngle;
+            let vx = Math.cos(ang);
+            let vy = Math.sin(ang);
+
+            let isCrit = Math.random() < this.player.critChance;
+            let damage = this.baseDamage * this.player.baseDamageMult;
+            if (isCrit) damage *= this.player.critMult;
+
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, vx, vy, this.speed, damage, 9, '#b45309', isCrit, this.pierce);
+            proj.level = this.level;
+
+            proj.customOnHit = function() {
+                for (let j = 0; j < 3; j++) {
+                    let shardAng = Math.random() * Math.PI * 2;
+                    const shard = projectilePool.get();
+                    shard.spawn(proj.x, proj.y, Math.cos(shardAng), Math.sin(shardAng), 280, proj.damage * 0.35, 4, '#d97706', false, 1);
+                    shard.life = 0.5;
+                    projectiles.push(shard);
+                }
+                proj.active = false;
+            };
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.rotate(ang + Math.PI/2);
+                ctxCanvas.fillStyle = '#78350f';
+                ctxCanvas.beginPath();
+                ctxCanvas.arc(0, -3, 7, Math.PI, 0);
+                ctxCanvas.fill();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- CURVING BANANA 🍌 ---
+class CurvingBananaWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Curving Banana";
+        this.level = 1;
+        this.cooldown = 1.0;
+        this.timer = 0;
+        this.baseDamage = 6;
+        this.bananaCount = 1;
+        this.pierce = 4;
+        this.speed = 290;
+        this.whirl = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.bananaCount = 2; // +banana
+        else if (lvl === 3) this.baseDamage += 3; // +daño
+        else if (lvl === 4) this.bananaCount = 3; // +banana
+        else if (lvl === 5) this.bananaCount = 3; // 3 bananas
+        else if (lvl === 6) this.pierce = 999; // atraviesa enemigos
+        else if (lvl === 7) this.baseDamage += 5; // +daño
+        else if (lvl === 8) this.speed += 120; // +velocidad
+        else if (lvl === 9) this.baseDamage += 6; // +daño
+        else if (lvl === 10) this.whirl = true; // Banana Whirl
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        if (this.whirl) {
+            for (let j = 0; j < 12; j++) {
+                let ang = (j / 12) * Math.PI * 2;
+                const proj = projectilePool.get();
+                proj.spawn(this.player.x, this.player.y, Math.cos(ang), Math.sin(ang), this.speed, this.baseDamage * 1.5, 12, '#ca8a04', false, 999);
+                proj.life = 2.0;
+                proj.angle = ang;
+                proj.curveDirection = 1;
+                proj.customUpdate = function(dtSec) {
+                    proj.angle += 3 * dtSec;
+                    proj.vx = Math.cos(proj.angle);
+                    proj.vy = Math.sin(proj.angle);
+                    proj.x += proj.vx * proj.speed * dtSec;
+                    proj.y += proj.vy * proj.speed * dtSec;
+                    proj.life -= dtSec;
+                    if (proj.life <= 0) proj.active = false;
+                };
+                projectiles.push(proj);
+            }
+            return;
+        }
+
+        let closest = getClosestEnemy(this.player, 600);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+        for (let i = 0; i < this.bananaCount; i++) {
+            let offsetAngle = (i - (this.bananaCount - 1) / 2) * 0.25;
+            let ang = Math.atan2(dy, dx) + offsetAngle;
+
+            let isCrit = Math.random() < this.player.critChance;
+            let damage = this.baseDamage * this.player.baseDamageMult;
+            if (isCrit) damage *= this.player.critMult;
+
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, Math.cos(ang), Math.sin(ang), this.speed, damage, 11, '#eab308', isCrit, this.pierce);
+            proj.life = 2.0;
+            proj.angle = ang;
+            proj.curveDirection = Math.random() < 0.5 ? 1 : -1;
+
+            proj.customUpdate = function(dtSec) {
+                proj.angle += proj.curveDirection * 2.8 * dtSec;
+                proj.vx = Math.cos(proj.angle);
+                proj.vy = Math.sin(proj.angle);
+                proj.x += proj.vx * proj.speed * dtSec;
+                proj.y += proj.vy * proj.speed * dtSec;
+                proj.life -= dtSec;
+                if (proj.life <= 0) proj.active = false;
+            };
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.rotate(proj.angle);
+                ctxCanvas.fillStyle = '#fde047';
+                ctxCanvas.beginPath();
+                ctxCanvas.arc(0, 0, proj.radius, Math.PI * 0.1, Math.PI * 0.9);
+                ctxCanvas.closePath();
+                ctxCanvas.fill();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- DARK ENERGY ⚫ ---
+class DarkEnergyWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Dark Energy";
+        this.level = 1;
+        this.timer = 0;
+        this.tickRate = 0.5;
+        this.baseDamage = 3;
+        this.radius = 85;
+        this.darkMagic = false;
+        this.theDarkness = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.baseDamage += 2; // +daño
+        else if (lvl === 3) this.radius += 35; // más tamaño
+        else if (lvl === 4) this.baseDamage += 3; // +daño
+        else if (lvl === 5) this.darkMagic = true; // Dark Magic
+        else if (lvl === 6) this.baseDamage += 4; // +daño
+        else if (lvl === 7) this.radius += 45; // más tamaño
+        else if (lvl === 8) this.theDarkness = true; // The Darkness
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.pulse();
+            this.timer = this.tickRate;
+        }
+    }
+    pulse() {
+        let isCrit = Math.random() < this.player.critChance;
+        let damage = this.baseDamage * this.player.baseDamageMult;
+        if (this.theDarkness) damage *= 2;
+        if (isCrit) damage *= this.player.critMult;
+
+        const rSq = this.radius * this.radius;
+        for (let e of enemies) {
+            if (!e.active) continue;
+            let dSq = distSq(this.player.x, this.player.y, e.x, e.y);
+            if (dSq <= rSq) {
+                let dx = e.x - this.player.x;
+                let dy = e.y - this.player.y;
+                let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                e.takeDamage(damage, isCrit, dx/dist, dy/dist);
+                if (this.darkMagic) {
+                    e.speed *= 0.5;
+                }
+            }
+        }
+    }
+    draw(ctxCanvas, camX, camY) {
+        ctxCanvas.save();
+        ctxCanvas.translate(this.player.x - camX, this.player.y - camY);
+        let grad = ctxCanvas.createRadialGradient(0, 0, this.player.radius, 0, 0, this.radius);
+        grad.addColorStop(0, 'rgba(147, 51, 234, 0.02)');
+        grad.addColorStop(1, this.theDarkness ? 'rgba(88, 28, 135, 0.5)' : 'rgba(168, 85, 247, 0.35)');
+        ctxCanvas.fillStyle = grad;
+        ctxCanvas.beginPath();
+        ctxCanvas.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctxCanvas.fill();
+        ctxCanvas.restore();
+    }
+}
+
+// --- FLYING FEATHERS 🦜 ---
+class FlyingFeathersWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Flying Feathers";
+        this.level = 1;
+        this.cooldown = 1.8;
+        this.timer = 0;
+        this.baseDamage = 5;
+        this.feathersCount = 6;
+        this.pierce = 1;
+        this.speed = 450;
+        this.size = 10;
+        this.mightyMacaw = false;
+        this.coolCockatoo = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.feathersCount = 8; // +pluma
+        else if (lvl === 3) this.pierce += 2; // atraviesa enemigos
+        else if (lvl === 4) this.feathersCount = 10; // +pluma
+        else if (lvl === 5) { this.mightyMacaw = true; this.size *= 1.8; } // Mighty Macaw
+        else if (lvl === 6) this.baseDamage += 3; // +daño
+        else if (lvl === 7) this.pierce += 3; // más penetración
+        else if (lvl === 8) this.speed += 150; // +velocidad
+        else if (lvl === 9) this.baseDamage += 4; // +daño
+        else if (lvl === 10) this.coolCockatoo = true; // Cool Cockatoo
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        if (this.coolCockatoo) {
+            for (let i = 0; i < 8; i++) {
+                let ang = (i / 8) * Math.PI * 2;
+                const proj = projectilePool.get();
+                proj.spawn(this.player.x, this.player.y, 0, 0, 0, this.baseDamage * 2, this.size, '#06b6d4', false, 999);
+                proj.life = 4.0;
+                proj.angle = ang;
+                proj.player = this.player;
+                proj.customUpdate = function(dtSec) {
+                    proj.angle += 4.5 * dtSec;
+                    proj.x = proj.player.x + Math.cos(proj.angle) * 90;
+                    proj.y = proj.player.y + Math.sin(proj.angle) * 90;
+                    proj.life -= dtSec;
+                    if (proj.life <= 0) proj.active = false;
+                };
+                projectiles.push(proj);
+            }
+            return;
+        }
+
+        let isCrit = Math.random() < this.player.critChance;
+        let damage = this.baseDamage * this.player.baseDamageMult;
+        if (isCrit) damage *= this.player.critMult;
+
+        for (let i = 0; i < this.feathersCount; i++) {
+            let ang = (i / this.feathersCount) * Math.PI * 2;
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, Math.cos(ang), Math.sin(ang), this.speed, damage, this.size, '#ec4899', isCrit, this.pierce);
+            proj.life = 0.65;
+            proj.angle = ang;
+            proj.mightyMacaw = this.mightyMacaw;
+
+            proj.customUpdate = function(dtSec) {
+                proj.speed *= 0.91;
+                proj.x += proj.vx * proj.speed * dtSec;
+                proj.y += proj.vy * proj.speed * dtSec;
+                proj.life -= dtSec;
+                if (proj.life <= 0) proj.active = false;
+            };
+
+            proj.customOnHit = (enemy) => {
+                if (proj.mightyMacaw) {
+                    enemy.knockbackX += proj.vx * 15;
+                    enemy.knockbackY += proj.vy * 15;
+                }
+                proj.pierce--;
+                if (proj.pierce <= 0) proj.active = false;
+            };
+
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- JUGGLING SPHERES 🔵 ---
+class JugglingSpheresWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Juggling Spheres";
+        this.level = 1;
+        this.baseDamage = 5;
+        this.spheresCount = 1;
+        this.pierceInfinite = false;
+        this.wheelOfSpheres = false;
+        this.spheres = [];
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.spheresCount = 2; // +esfera
+        else if (lvl === 3) this.pierceInfinite = true; // atraviesa enemigos
+        else if (lvl === 4) this.spheresCount = 3; // +esfera
+        else if (lvl === 5) this.baseDamage += 15; // +15 daño
+        else if (lvl === 6) this.spheresCount = 4; // +esfera
+        else if (lvl === 7) this.pierceInfinite = true; // más penetración
+        else if (lvl === 8) this.baseDamage += 15; // +15 daño
+        else if (lvl === 9) { this.spheresCount = 8; this.wheelOfSpheres = true; } // Wheel of Spheres
+    }
+    update(dt) {
+        while (this.spheres.length < this.spheresCount) {
+            this.spheres.push({
+                angle: (this.spheres.length / this.spheresCount) * Math.PI * 2,
+                color: '#3b82f6',
+                enemyCooldowns: new Map()
+            });
+        }
+        while (this.spheres.length > this.spheresCount) {
+            this.spheres.pop();
+        }
+
+        let radius = 75 + (this.level * 5);
+        let speed = 4.5;
+
+        this.spheres.forEach(s => {
+            s.angle += speed * dt;
+            let sx = this.player.x + Math.cos(s.angle) * radius;
+            let sy = this.player.y + Math.sin(s.angle) * radius;
+
+            let isCrit = Math.random() < this.player.critChance;
+            let damage = this.baseDamage * this.player.baseDamageMult;
+            if (isCrit) damage *= this.player.critMult;
+
+            s.enemyCooldowns.forEach((time, e) => {
+                s.enemyCooldowns.set(e, time - dt);
+                if (time <= 0) s.enemyCooldowns.delete(e);
+            });
+
+            for (let e of enemies) {
+                if (!e.active) continue;
+                let dSq = distSq(sx, sy, e.x, e.y);
+                if (dSq < (12 + e.radius)**2) {
+                    if (this.pierceInfinite || !s.enemyCooldowns.has(e)) {
+                        let dx = e.x - sx;
+                        let dy = e.y - sy;
+                        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                        e.takeDamage(damage, isCrit, dx/dist, dy/dist);
+                        s.enemyCooldowns.set(e, 0.25);
+                    }
+                }
+            }
+        });
+    }
+    draw(ctxCanvas, camX, camY) {
+        let radius = 75 + (this.level * 5);
+        this.spheres.forEach(s => {
+            let sx = this.player.x + Math.cos(s.angle) * radius;
+            let sy = this.player.y + Math.sin(s.angle) * radius;
+
+            ctxCanvas.save();
+            ctxCanvas.translate(sx - camX, sy - camY);
+            ctxCanvas.fillStyle = '#3b82f6';
+            ctxCanvas.beginPath();
+            ctxCanvas.arc(0, 0, this.wheelOfSpheres ? 16 : 10, 0, Math.PI*2);
+            ctxCanvas.fill();
+            ctxCanvas.restore();
+        });
+    }
+}
+
+// --- PEACOCK FEATHERS 🦚 ---
+class PeacockFeathersWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Peacock Feathers";
+        this.level = 1;
+        this.cooldown = 1.5;
+        this.timer = 0;
+        this.baseDamage = 7;
+        this.feathersCount = 3;
+        this.pierce = 2;
+        this.speed = 380;
+        this.betterFeathers = false;
+        this.excellence = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.feathersCount = 4; // +pluma
+        else if (lvl === 3) this.pierce += 2; // atraviesa enemigos
+        else if (lvl === 4) this.feathersCount = 5; // +pluma
+        else if (lvl === 5) this.betterFeathers = true; // Better Feathers
+        else if (lvl === 6) this.pierce += 3; // más penetración
+        else if (lvl === 7) this.speed += 100; // +velocidad
+        else if (lvl === 8) this.baseDamage += 10; // +10 daño
+        else if (lvl === 9) this.speed += 100; // +velocidad
+        else if (lvl === 10) this.excellence = true; // Feathers Excellence
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 600);
+        let baseAngle = closest ? Math.atan2(closest.y - this.player.y, closest.x - this.player.x) : 0;
+
+        let isCrit = Math.random() < this.player.critChance;
+        let damage = this.baseDamage * this.player.baseDamageMult;
+        if (isCrit) damage *= this.player.critMult;
+
+        let count = this.excellence ? 24 : this.feathersCount;
+        let arc = this.excellence ? Math.PI * 2 : 0.55;
+
+        for (let i = 0; i < count; i++) {
+            let ang = this.excellence ? (i / count) * Math.PI * 2 : baseAngle - arc/2 + (i / (count - 1)) * arc;
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, Math.cos(ang), Math.sin(ang), this.speed, damage, 11, '#10b981', isCrit, this.pierce);
+            proj.angle = ang;
+            proj.life = 1.5;
+            proj.betterFeathers = this.betterFeathers;
+
+            if (this.betterFeathers) {
+                proj.customOnHit = (enemy) => {
+                    spawnFloatingText(proj.x, proj.y, "✨ FLASH!", false);
+                    proj.pierce--;
+                    if (proj.pierce <= 0) proj.active = false;
+                };
+            }
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.rotate(proj.angle + Math.PI/2);
+                ctxCanvas.fillStyle = proj.betterFeathers ? '#fbbf24' : '#0f766e';
+                ctxCanvas.beginPath();
+                ctxCanvas.ellipse(0, 0, 5, proj.radius, 0, 0, Math.PI*2);
+                ctxCanvas.fill();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- RAPID-FIRE LASERS 🔫 ---
+class RapidFireLasersWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Rapid-Fire Lasers";
+        this.level = 1;
+        this.cooldown = 0.15;
+        this.timer = 0;
+        this.baseDamage = 1.5;
+        this.speed = 600;
+        this.pierce = 1;
+        this.doubleLaser = false;
+        this.laserCannon = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.baseDamage += 1.5; // +daño
+        else if (lvl === 3) this.pierce += 2; // atraviesa enemigos
+        else if (lvl === 4) { this.speed += 200; this.cooldown *= 0.8; } // +velocidad
+        else if (lvl === 5) this.doubleLaser = true; // Double Laser
+        else if (lvl === 6) this.baseDamage += 2; // +daño
+        else if (lvl === 7) this.cooldown *= 0.8; // +velocidad
+        else if (lvl === 8) this.baseDamage += 3; // +daño
+        else if (lvl === 9) this.pierce += 3; // más penetración
+        else if (lvl === 10) this.laserCannon = true; // Laser Cannon
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 550);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+        let damage = this.baseDamage * this.player.baseDamageMult;
+        if (this.laserCannon) damage *= 3;
+
+        let shots = this.doubleLaser ? 2 : 1;
+        for (let i = 0; i < shots; i++) {
+            let offsetAngle = this.doubleLaser ? (i === 0 ? -0.1 : 0.1) : 0;
+            let c = Math.cos(offsetAngle);
+            let s = Math.sin(offsetAngle);
+            let vx = (dx/dist)*c - (dy/dist)*s;
+            let vy = (dx/dist)*s + (dy/dist)*c;
+
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, vx, vy, this.speed, damage, this.laserCannon ? 15 : 4, '#ef4444', false, this.pierce);
+            proj.life = 1.0;
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.strokeStyle = '#ef4444';
+                ctxCanvas.lineWidth = proj.radius;
+                ctxCanvas.beginPath();
+                ctxCanvas.moveTo(-proj.vx * 20, -proj.vy * 20);
+                ctxCanvas.lineTo(0, 0);
+                ctxCanvas.stroke();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- REBOUNDING SHELLS 🐢 ---
+class ReboundingShellsWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Rebounding Shells";
+        this.level = 1;
+        this.cooldown = 1.8;
+        this.timer = 0;
+        this.baseDamage = 10;
+        this.shellsCount = 1;
+        this.bounces = 4;
+        this.autoTarget = false;
+        this.destruction = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.baseDamage += 5; // +daño
+        else if (lvl === 3) this.shellsCount = 2; // +shell
+        else if (lvl === 4) this.bounces += 4; // más rebotes
+        else if (lvl === 5) this.autoTarget = true; // auto-target
+        else if (lvl === 6) this.shellsCount = 3; // +shell
+        else if (lvl === 7) this.baseDamage += 6; // +daño
+        else if (lvl === 8) this.bounces += 5; // más rebotes
+        else if (lvl === 9) this.baseDamage += 10; // +10 daño
+        else if (lvl === 10) this.destruction = true; // Destruction Shells
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 600);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+        let count = this.destruction ? 5 : this.shellsCount;
+        for (let i = 0; i < count; i++) {
+            let offsetAngle = (i - (count - 1) / 2) * 0.3;
+            let c = Math.cos(offsetAngle);
+            let s = Math.sin(offsetAngle);
+            let vx = (dx/dist)*c - (dy/dist)*s;
+            let vy = (dx/dist)*s + (dy/dist)*c;
+
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, vx, vy, 260, this.baseDamage, this.destruction ? 24 : 13, '#10b981', false, 1);
+            proj.bounces = this.bounces;
+            proj.life = 4.0;
+            proj.angle = 0;
+            proj.autoTarget = this.autoTarget;
+            proj.destruction = this.destruction;
+
+            proj.customUpdate = function(dtSec) {
+                proj.angle += 10 * dtSec;
+                proj.x += proj.vx * proj.speed * dtSec;
+                proj.y += proj.vy * proj.speed * dtSec;
+
+                if (proj.destruction) {
+                    visualEffects.push({
+                        x: proj.x, y: proj.y, radius: 4, life: 0.3, maxLife: 0.3, color: 'rgba(239, 68, 68, 0.4)'
+                    });
+                }
+
+                let limitX = width + 1000;
+                let limitY = height + 1000;
+                if (proj.x < -1000 || proj.x > limitX) { proj.vx *= -1; proj.bounces--; }
+                if (proj.y < -1000 || proj.y > limitY) { proj.vy *= -1; proj.bounces--; }
+                if (proj.bounces <= 0) proj.active = false;
+
+                proj.life -= dtSec;
+                if (proj.life <= 0) proj.active = false;
+            };
+
+            proj.customOnHit = function(enemy) {
+                if (proj.autoTarget) {
+                    let next = getClosestEnemy(proj, 400);
+                    if (next) {
+                        let ndx = next.x - proj.x;
+                        let ndy = next.y - proj.y;
+                        let ndist = Math.sqrt(ndx*ndx + ndy*ndy) || 1;
+                        proj.vx = ndx / ndist;
+                        proj.vy = ndy / ndist;
+                    } else {
+                        proj.vx *= -1;
+                        proj.vy *= -1;
+                    }
+                } else {
+                    proj.vx *= -1;
+                    proj.vy *= -1;
+                }
+                proj.bounces--;
+                proj.hitTargets.clear();
+            };
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.rotate(proj.angle);
+                ctxCanvas.fillStyle = proj.destruction ? '#b91c1c' : '#16a34a';
+                ctxCanvas.beginPath();
+                ctxCanvas.arc(0, 0, proj.radius, 0, Math.PI*2);
+                ctxCanvas.fill();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- REVOLVING HORSESHOES 🧲 ---
+class RevolvingHorseshoesWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Revolving Horseshoes";
+        this.level = 1;
+        this.cooldown = 1.6;
+        this.timer = 0;
+        this.baseDamage = 7;
+        this.horseshoesCount = 2;
+        this.life = 2.5;
+        this.sizeScale = 1.0;
+        this.obsidian = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.horseshoesCount = 3; // +herradura
+        else if (lvl === 3) this.baseDamage += 3; // +daño
+        else if (lvl === 4) this.horseshoesCount = 4; // +herradura
+        else if (lvl === 5) { this.sizeScale = 1.4; this.baseDamage += 5; } // Steel Upgrade
+        else if (lvl === 6) this.life += 1.5; // +duración
+        else if (lvl === 7) this.horseshoesCount = 5; // +herradura
+        else if (lvl === 8) this.baseDamage += 10; // +10 daño
+        else if (lvl === 9) this.horseshoesCount = 6; // +herradura
+        else if (lvl === 10) this.obsidian = true; // Obsidian Upgrade
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        for (let i = 0; i < this.horseshoesCount; i++) {
+            let baseAng = (i / this.horseshoesCount) * Math.PI * 2;
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, 0, 0, 0, this.baseDamage, 12 * this.sizeScale, '#9ca3af', false, 3);
+            proj.life = this.life;
+            proj.angle = baseAng;
+            proj.spiralRadius = 30;
+            proj.player = this.player;
+            proj.obsidian = this.obsidian;
+
+            proj.customUpdate = function(dtSec) {
+                proj.angle += 3.5 * dtSec;
+                proj.spiralRadius += 105 * dtSec;
+                proj.x = proj.player.x + Math.cos(proj.angle) * proj.spiralRadius;
+                proj.y = proj.player.y + Math.sin(proj.angle) * proj.spiralRadius;
+
+                if (proj.obsidian && Math.random() < 0.25) {
+                    const shard = projectilePool.get();
+                    let shardAng = Math.random() * Math.PI * 2;
+                    shard.spawn(proj.x, proj.y, Math.cos(shardAng), Math.sin(shardAng), 300, proj.damage * 0.4, 4, '#a855f7', false, 1);
+                    shard.life = 0.5;
+                    projectiles.push(shard);
+                }
+
+                proj.life -= dtSec;
+                if (proj.life <= 0) proj.active = false;
+            };
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.rotate(proj.angle + Math.PI/2);
+                ctxCanvas.strokeStyle = proj.obsidian ? '#8b5cf6' : '#cbd5e1';
+                ctxCanvas.lineWidth = 4;
+                ctxCanvas.beginPath();
+                ctxCanvas.arc(0, 0, proj.radius * 0.7, Math.PI * 1.1, Math.PI * 1.9, true);
+                ctxCanvas.stroke();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- SLICING CARDS 🃏 ---
+class SlicingCardsWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Slicing Cards";
+        this.level = 1;
+        this.cooldown = 1.2;
+        this.timer = 0;
+        this.baseDamage = 5;
+        this.speed = 410;
+        this.fourSuits = false;
+        this.cardShuffle = false;
+        this.texturize = false;
+        this.pierce = 1;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.baseDamage += 2.5; // +daño
+        else if (lvl === 3) this.pierce = 999; // atraviesa enemigos
+        else if (lvl === 4) this.speed += 150; // +velocidad
+        else if (lvl === 5) this.fourSuits = true; // Four Suits
+        else if (lvl === 6) this.baseDamage += 4; // +daño
+        else if (lvl === 7) this.pierce = 999; // más penetración (infinita)
+        else if (lvl === 8) this.speed += 150; // +velocidad
+        else if (lvl === 9) this.baseDamage += 5; // +daño
+        else if (lvl === 10) this.cardShuffle = true; // Card Shuffle
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        if (this.cardShuffle) {
+            for (let i = 0; i < 16; i++) {
+                let ang = (i / 16) * Math.PI * 2;
+                const proj = projectilePool.get();
+                proj.spawn(this.player.x, this.player.y, 0, 0, 0, this.baseDamage, 10, '#ef4444', false, 999);
+                proj.life = 2.5;
+                proj.angle = ang;
+                proj.player = this.player;
+                proj.customUpdate = function(dtSec) {
+                    proj.angle += 4 * dtSec;
+                    proj.x = proj.player.x + Math.cos(proj.angle) * 110;
+                    proj.y = proj.player.y + Math.sin(proj.angle) * 110;
+                    proj.life -= dtSec;
+                    if (proj.life <= 0) proj.active = false;
+                };
+                projectiles.push(proj);
+            }
+            return;
+        }
+
+        let closest = getClosestEnemy(this.player, 600);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+        let shots = this.fourSuits ? 4 : 1;
+        for (let i = 0; i < shots; i++) {
+            let angOffset = this.fourSuits ? (i * Math.PI / 2) : 0;
+            let c = Math.cos(angOffset);
+            let s = Math.sin(angOffset);
+            let vx = (dx/dist)*c - (dy/dist)*s;
+            let vy = (dx/dist)*s + (dy/dist)*c;
+
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, vx, vy, this.speed, this.baseDamage, 10, '#ef4444', false, this.pierce);
+            proj.life = 1.8;
+            proj.spinAngle = 0;
+
+            proj.customUpdate = function(dtSec) {
+                proj.spinAngle += 15 * dtSec;
+                proj.x += proj.vx * proj.speed * dtSec;
+                proj.y += proj.vy * proj.speed * dtSec;
+                proj.life -= dtSec;
+                if (proj.life <= 0) proj.active = false;
+            };
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.rotate(proj.spinAngle);
+                ctxCanvas.fillStyle = '#ffffff';
+                ctxCanvas.fillRect(-6, -10, 12, 20);
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- SPEEDING ARROWS 🏹 ---
+class SpeedingArrowsWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Speeding Arrows";
+        this.level = 1;
+        this.cooldown = 1.1;
+        this.timer = 0;
+        this.baseDamage = 11;
+        this.arrowsCount = 1;
+        this.speed = 700;
+        this.pierce = 1;
+        this.glowingUpgrade = false;
+        this.enchanted = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.arrowsCount = 2; // +flecha
+        else if (lvl === 3) this.baseDamage += 5; // +daño
+        else if (lvl === 4) this.arrowsCount = 3; // +flecha
+        else if (lvl === 5) this.glowingUpgrade = true; // upgrade (probabilidad crítica)
+        else if (lvl === 6) this.pierce += 2; // atraviesa enemigos
+        else if (lvl === 7) this.speed += 200; // +velocidad
+        else if (lvl === 8) this.arrowsCount = 5; // +2 flechas (total 5)
+        else if (lvl === 9) this.pierce += 3; // más penetración
+        else if (lvl === 10) this.enchanted = true; // Enchanted Upgrade
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 650);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+        for (let i = 0; i < this.arrowsCount; i++) {
+            let offsetAngle = (i - (this.arrowsCount - 1) / 2) * 0.2;
+            let ang = Math.atan2(dy, dx) + offsetAngle;
+
+            let isCrit = Math.random() < (this.glowingUpgrade ? 0.5 : this.player.critChance);
+            let damage = this.baseDamage * this.player.baseDamageMult;
+            if (isCrit) damage *= this.player.critMult;
+
+            const proj = projectilePool.get();
+            proj.spawn(this.player.x, this.player.y, Math.cos(ang), Math.sin(ang), this.speed, damage, 8, '#b45309', isCrit, this.pierce);
+            proj.life = 1.4;
+            proj.angle = ang;
+            proj.enchanted = this.enchanted;
+
+            if (this.enchanted) {
+                proj.customOnHit = (enemy) => {
+                    let next = getClosestEnemy(enemy, 300);
+                    if (next) {
+                        proj.x = next.x;
+                        proj.y = next.y;
+                        triggerBubblePop({ x: proj.x, y: proj.y, damage: proj.damage, level: 5, isCrit: true });
+                    }
+                    proj.pierce--;
+                    if (proj.pierce <= 0) proj.active = false;
+                };
+            }
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.rotate(proj.angle);
+                ctxCanvas.strokeStyle = '#78350f';
+                ctxCanvas.lineWidth = 2;
+                ctxCanvas.beginPath();
+                ctxCanvas.moveTo(-15, 0);
+                ctxCanvas.lineTo(10, 0);
+                ctxCanvas.stroke();
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- STICKY SYRUP 🍁 ---
+class StickySyrupWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Sticky Syrup";
+        this.level = 1;
+        this.cooldown = 2.0;
+        this.timer = 0;
+        this.baseDamage = 2.5;
+        this.radius = 45;
+        this.puddlesCount = 1;
+        this.duration = 4.0;
+        this.dropzone = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.cooldown *= 0.8; // +syrup (frecuencia)
+        else if (lvl === 3) this.puddlesCount = 2; // +syrup (charcos simultáneos)
+        else if (lvl === 4) this.radius *= 1.5; // charcos grandes
+        else if (lvl === 5) this.puddlesCount = 3; // +syrup
+        else if (lvl === 6) this.radius *= 1.8; // Big Puddles
+        else if (lvl === 7) this.baseDamage += 10; // +10 daño
+        else if (lvl === 8) this.puddlesCount = 4; // +syrup
+        else if (lvl === 9) this.duration = 8.0; // +duración
+        else if (lvl === 10) this.dropzone = true; // Dropzone
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let maxCount = this.puddlesCount;
+        let finalRadius = this.dropzone ? this.radius * 2.5 : this.radius;
+        let finalSlow = this.dropzone ? 0.15 : 0.5; // 85% slow
+
+        for (let i = 0; i < maxCount; i++) {
+            let rx = this.player.x + (i > 0 ? randRange(-150, 150) : 0);
+            let ry = this.player.y + (i > 0 ? randRange(-150, 150) : 0);
+
+            visualEffects.push({
+                x: rx,
+                y: ry,
+                radius: finalRadius,
+                life: this.duration,
+                maxLife: this.duration,
+                baseDamage: this.baseDamage,
+                slowFactor: finalSlow,
+                draw: function(ctxCanvas, camX, camY) {
+                    ctxCanvas.save();
+                    ctxCanvas.fillStyle = 'rgba(217, 119, 6, 0.45)';
+                    ctxCanvas.beginPath();
+                    ctxCanvas.arc(this.x - camX, this.y - camY, this.radius, 0, Math.PI * 2);
+                    ctxCanvas.fill();
+                    ctxCanvas.restore();
+                },
+                updateSlows: function(enemiesList, playerRef, dtSec) {
+                    for (let e of enemiesList) {
+                        if (!e.active) continue;
+                        let dSq = distSq(this.x, this.y, e.x, e.y);
+                        if (dSq <= this.radius * this.radius) {
+                            e.speed = Math.max(30, e.speed * this.slowFactor);
+                            e.takeDamage(this.baseDamage * dtSec, false, 0, 0);
+                        }
+                    }
+                }
+            });
+        }
+    }
+}
+
+// --- WHIRLING BONES 🦴 ---
+class WhirlingBonesWeapon {
+    constructor(player) {
+        this.player = player;
+        this.name = "Whirling Bones";
+        this.level = 1;
+        this.cooldown = 1.3;
+        this.timer = 0;
+        this.baseDamage = 7;
+        this.pierce = 3;
+        this.size = 11;
+        this.bonesCount = 2;
+        this.boneRampage = false;
+    }
+    applyUpgrade(lvl) {
+        this.level = lvl;
+        if (lvl === 2) this.baseDamage += 3; // +daño
+        else if (lvl === 3) this.size *= 1.5; // huesos grandes
+        else if (lvl === 4) this.pierce += 3; // atraviesa enemigos
+        else if (lvl === 5) this.bonesCount = 4; // More Bones
+        else if (lvl === 6) this.baseDamage += 4; // +daño
+        else if (lvl === 7) this.pierce += 4; // más penetración
+        else if (lvl === 8) this.size *= 1.4; // huesos grandes
+        else if (lvl === 9) this.baseDamage += 5; // +daño
+        else if (lvl === 10) this.boneRampage = true; // Bone Rampage
+    }
+    update(dt) {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+            this.fire();
+            this.timer = this.cooldown;
+        }
+    }
+    fire() {
+        let closest = getClosestEnemy(this.player, 600);
+        if (!closest) return;
+        let dx = closest.x - this.player.x;
+        let dy = closest.y - this.player.y;
+        let baseAng = Math.atan2(dy, dx);
+
+        let count = this.boneRampage ? 8 : this.bonesCount;
+        for (let i = 0; i < count; i++) {
+            let side = (i % 2 === 0) ? 1 : -1;
+            const proj = projectilePool.get();
+            let vx = Math.cos(baseAng);
+            let vy = Math.sin(baseAng);
+            proj.spawn(this.player.x, this.player.y, vx, vy, 280, this.baseDamage, this.size, '#f3f4f6', false, this.pierce);
+            proj.life = 2.0;
+            proj.angle = baseAng + (i * 0.15);
+            proj.boneSpin = 0;
+            proj.side = side;
+            proj.timePassed = 0;
+            proj.originX = this.player.x;
+            proj.originY = this.player.y;
+            proj.boneRampage = this.boneRampage;
+
+            proj.customUpdate = function(dtSec) {
+                proj.timePassed += dtSec;
+                proj.boneSpin += 12 * dtSec;
+                
+                let distTravelled = proj.speed * proj.timePassed;
+                let perpAmp = Math.sin(proj.timePassed * 10) * 45 * proj.side;
+                if (proj.boneRampage) perpAmp *= 1.8;
+
+                let forwardX = Math.cos(proj.angle) * distTravelled;
+                let forwardY = Math.sin(proj.angle) * distTravelled;
+                
+                let perpX = -Math.sin(proj.angle) * perpAmp;
+                let perpY = Math.cos(proj.angle) * perpAmp;
+
+                proj.x = proj.originX + forwardX + perpX;
+                proj.y = proj.originY + forwardY + perpY;
+
+                proj.life -= dtSec;
+                if (proj.life <= 0) proj.active = false;
+            };
+
+            proj.customOnHit = (enemy) => {
+                if (proj.boneRampage) {
+                    enemy.knockbackX += proj.vx * 30;
+                    enemy.knockbackY += proj.vy * 30;
+                }
+                proj.pierce--;
+                if (proj.pierce <= 0) proj.active = false;
+            };
+
+            proj.customDraw = function(ctxCanvas, camX, camY) {
+                ctxCanvas.save();
+                ctxCanvas.translate(proj.x - camX, proj.y - camY);
+                ctxCanvas.rotate(proj.boneSpin);
+                ctxCanvas.fillStyle = '#f3f4f6';
+                ctxCanvas.fillRect(-3, -10, 6, 20);
+                ctxCanvas.restore();
+            };
+            projectiles.push(proj);
+        }
+    }
+}
+
+// --- POOLS Y COLECCIONES GLOBAL ---
+const enemyPool = new ObjectPool(() => new Enemy());
+const projectilePool = new ObjectPool(() => new Projectile());
+const enemyProjPool = new ObjectPool(() => new EnemyProjectile());
+const xpPool = new ObjectPool(() => new XpOrb());
+const textPool = new ObjectPool(() => new FloatingText());
+
+const enemies = [];
+const projectiles = [];
+const enemyProjectiles = [];
+const xpOrbs = [];
+const floatingTexts = [];
+const visualEffects = []; 
+
+const enemyGrid = new SpatialGrid(100);
+let player;
+
+// --- WAVE SPAWNER ---
+let spawnTimer = 0;
+function updateWaveSpawner(dt) {
+    spawnTimer -= dt;
+    
+    let baseRate = 0.9 - (gameTimer / 140);
+    let spawnRate = Math.max(0.12, baseRate);
+    
+    if (currentDifficulty === 'dificil') spawnRate *= 0.85;
+    if (currentDifficulty === 'experto') spawnRate *= 0.70;
+    
+    if (spawnTimer <= 0) {
+        spawnTimer = spawnRate;
+        
+        let difficultyMultHp = 1.0;
+        let difficultyMultSpeed = 1.0;
+        let difficultyMultDamage = 1.0;
+
+        if (currentDifficulty === 'dificil') {
+            difficultyMultHp = 1.25;
+            difficultyMultSpeed = 1.15;
+            difficultyMultDamage = 1.10;
+        } else if (currentDifficulty === 'experto') {
+            difficultyMultHp = 1.60;
+            difficultyMultSpeed = 1.30;
+            difficultyMultDamage = 1.25;
+        }
+
+        let enemyHp = (5 + Math.floor(gameTimer / 9) * 2) * difficultyMultHp; 
+        let enemyDamage = (5 + Math.floor(gameTimer / 28) * 4) * difficultyMultDamage;
+        let enemySpeed = (95 + Math.min(105, gameTimer / 1.8)) * difficultyMultSpeed;
+
+        let angle = Math.random() * Math.PI * 2;
+        let dist = Math.max(width, height) / 2 + 100;
+        let sx = player.x + Math.cos(angle) * dist;
+        let sy = player.y + Math.sin(angle) * dist;
+
+        const enemy = enemyPool.get();
+        let color = enemyHp < 15 ? '#ef4444' : (enemyHp < 30 ? '#d946ef' : '#1e3a8a');
+        enemy.spawn(sx, sy, enemyHp, enemySpeed, enemyDamage, 13, color);
+        enemies.push(enemy);
+    }
+}
+
+function spawnXpOrb(x, y, val) {
+    let activeOrbs = xpOrbs.filter(o => o.active).length;
+    if (activeOrbs > 500) {
+        player.addXp(val);
+        return;
+    }
+    const orb = xpPool.get();
+    orb.spawn(x, y, val);
+    xpOrbs.push(orb);
+}
+
+function spawnFloatingText(x, y, text, isCrit) {
+    const ft = textPool.get();
+    ft.spawn(x, y, text, isCrit);
+    floatingTexts.push(ft);
+}
+
+/**
+ * STREAMING_CHUNK: Setting up weapon progress database dictionary
+ */
+
+function getWeaponUpgradeDesc(name, lvl) {
+    if (lvl === 1) {
+        return `Descubre e invoca el poder místico de: ${name}.`;
+    }
+    
+    const db = {
+        "Boomerang Pizza": {
+            2: "+velocidad (La velocidad de la pizza aumenta)",
+            3: "+daño (Aumenta el daño base de la pizza)",
+            4: "+pizza (Lanza 2 pizzas en lugar de 1)",
+            5: "Pizzas Grandes (Incrementa el tamaño de la pizza)",
+            6: "+pizza (Lanza 3 pizzas)",
+            7: "+velocidad (La velocidad de la pizza aumenta aún más)",
+            8: "+daño (Aumenta el daño de forma destructiva)",
+            9: "+pizza (Lanza 4 pizzas en abanico circular)",
+            10: "combo final (Las pizzas explotan en deliciosos y letales trozos al regresar)"
+        },
+        "Booming Bubbles": {
+            2: "+daño (Incrementa el daño base)",
+            3: "+daño (Suma aún más potencia)",
+            4: "burbujas grandes (Aumenta el volumen y alcance de la explosión)",
+            5: "atraviesa enemigos (Las burbujas perforan antes de estallar)",
+            6: "dispersión (Dispara 3 burbujas al mismo tiempo)",
+            7: "+daño (Daño base escalado)",
+            8: "más tamaño (El rango místico de explosión de área se expande)",
+            9: "+velocidad (Se propagan y viajan mucho más rápido)",
+            10: "Bubble Storm (Cadencia extrema de fuego de burbujas)"
+        },
+        "Bouncy Slime": {
+            2: "+daño (Suma potencia destructiva)",
+            3: "+duración (El slime permanece más tiempo rebotando)",
+            4: "+velocidad (Viaja y rebota con mayor ligereza)",
+            5: "+2 slimes (Lanza 3 slimes simultáneamente)",
+            6: "+daño (El impacto se refuerza)",
+            7: "+duración (El slime es casi inmortal en pantalla)",
+            8: "+daño (Multiplicador base incrementado)",
+            9: "+velocidad (Rebotes hiperveloces instantáneos)",
+            10: "+2 slimes (Desata un total de 5 slimes que rebotan sin parar)"
+        },
+        "Buzzing Bees": {
+            2: "+abeja (Suma una abeja guardiana orbital)",
+            3: "+daño (Las abejas pican con más fuerza)",
+            4: "+abeja (Suma otra abeja guardiana)",
+            5: "+10 daño (Picaduras infligen daño masivo plano)",
+            6: "+abeja (Añade una abeja guardiana más)",
+            7: "atraviesa enemigos (Las abejas perforan al embestir)",
+            8: "más penetración (Las abejas no se detienen tras los impactos)",
+            9: "+daño (Daño base escalado)",
+            10: "Bee Swarm (¡Suma un enjambre de 10 abejas hiperveloces!)"
+        },
+        "Crazy Acorns": {
+            2: "+bellota (Dispara 4 bellotas simultáneas)",
+            3: "+bellota (Dispara 5 bellotas en gran arco)",
+            4: "+daño (Incrementa el impacto base)",
+            5: "más velocidad (Las bellotas viajan en un suspiro)",
+            6: "más penetración (Perfora 1 objetivo adicional)",
+            7: "+velocidad (La velocidad de proyectil aumenta)",
+            8: "+daño (Suma potencia extra)",
+            9: "más penetración (Atraviesa otro enemigo)",
+            10: "Rapid Fire (Tiempo de recarga nulo, ¡tormenta continua!)"
+        },
+        "Curving Banana": {
+            2: "+banana (Dispara 2 bananas simultáneas)",
+            3: "+daño (Daño base escalado)",
+            4: "+banana (Suma 3 bananas al cono de ataque)",
+            5: "3 bananas (Fuerza de ataque circular)",
+            6: "atraviesa enemigos (Perforación circular infinita)",
+            7: "+daño (Fuerza de plátano incrementada)",
+            8: "+velocidad (Velocidad de giro aumentada)",
+            9: "+daño (Daño base incrementado)",
+            10: "Banana Whirl (Lanza una devastadora hélice circular de bananas)"
+        },
+        "Dark Energy": {
+            2: "+daño (Incrementa el pulso oscuro)",
+            3: "más tamaño (Aumenta el diámetro del aura mística)",
+            4: "+daño (Daño base escalado)",
+            5: "Dark Magic (Ralentiza un 50% a todos los enemigos que entren en el aura)",
+            6: "+daño (Daño base de pulsos escalado)",
+            7: "más tamaño (Radio místico expandido dramáticamente)",
+            8: "The Darkness (Aura gigante destructiva continua)"
+        },
+        "Flying Feathers": {
+            2: "+pluma (Lanza 8 plumas en abanico completo)",
+            3: "atraviesa enemigos (Las plumas perforan enemigos)",
+            4: "+pluma (Dispara un abanico de 10 plumas)",
+            5: "Mighty Macaw (Plumas gigantes con enorme retroceso de empuje)",
+            6: "+daño (Daño base incrementado)",
+            7: "más penetración (Atraviesa múltiples enemigos en fila)",
+            8: "+velocidad (Las plumas viajan con ligereza)",
+            9: "+daño (Aumenta de forma letal)",
+            10: "Cool Cockatoo (Las plumas forman un escudo circular continuo congelante)"
+        },
+        "Juggling Spheres": {
+            2: "+esfera (Gira con 2 esferas orbitales)",
+            3: "atraviesa enemigos (Las esferas impactan sin frenar)",
+            4: "+esfera (Gira con 3 esferas protectoras)",
+            5: "+15 daño (Suma daño plano masivo de impacto)",
+            6: "+esfera (Gira con 4 esferas místicas)",
+            7: "más penetración (Retardo de colisión casi inexistente)",
+            8: "+15 daño (Suma un segundo multiplicador plano destructivo)",
+            9: "Wheel of Spheres (¡Hasta 8 esferas masivas continuas conectadas por energía!)"
+        },
+        "Peacock Feathers": {
+            2: "+pluma (Añade una pluma al abanico místico)",
+            3: "atraviesa enemigos (Perforación de plumas de pavo real)",
+            4: "+pluma (Incrementa el cono de plumas)",
+            5: "Better Feathers (Partículas relucientes y estallido místico al golpear)",
+            6: "más penetración (Atraviesa múltiples enemigos)",
+            7: "+velocidad (Proyectiles veloces)",
+            8: "+10 daño (Suma +10 daño plano a la ráfaga)",
+            9: "+velocidad (Velocidad de plumas aumentada)",
+            10: "Feathers Excellence (Ráfaga majestuosa circular en todas direcciones)"
+        },
+        "Rapid Eggs": {
+            2: "+huevo (Lanza una ráfaga de 2 huevos directos)",
+            3: "+huevo (Lanza ráfagas de 3 huevos)",
+            4: "+daño (Daño base del huevo incrementado)",
+            5: "Rapid-Fire (Velocidad de ataque duplicada)",
+            6: "+huevo (Dispara ráfagas de 4 huevos)",
+            7: "+daño (Fuerza destructiva escalada)",
+            8: "atraviesa enemigos (Los huevos penetran objetivos)",
+            9: "+10 daño (Incrementa el daño plano significativamente)",
+            10: "EGGS EGGS EGGS (¡Ráfaga continua de huevos dorados explosivos!)"
+        },
+        "Rapid-Fire Lasers": {
+            2: "+daño (El daño láser aumenta)",
+            3: "atraviesa enemigos (Los láseres perforan objetivos en fila)",
+            4: "+velocidad (Cadencia de disparo y velocidad láser aumentada)",
+            5: "Double Laser (Dispara dos láseres paralelos continuos)",
+            6: "+daño (Incremento de potencia)",
+            7: "+velocidad (Frecuencia mística aumentada)",
+            8: "+daño (Multiplicador de plasma incrementado)",
+            9: "más penetración (Los láseres atraviesan múltiples enemigos)",
+            10: "Laser Cannon (¡Dispara un rayo continuo gigante de plasma destructivo!)"
+        },
+        "Rebounding Shells": {
+            2: "+daño (El caparazón es mucho más pesado)",
+            3: "+shell (Dispara 2 caparazones simultáneos)",
+            4: "más rebotes (Cada caparazón rebota 4 veces adicionales)",
+            5: "auto-target (Los caparazones buscan al enemigo más cercano de forma inteligente)",
+            6: "+shell (Lanza 3 caparazones)",
+            7: "+daño (Daño base incrementado)",
+            8: "más rebotes (Suma 5 rebotes más)",
+            9: "+10 daño (Suma daño explosivo al impactar)",
+            10: "Destruction Shells (Caparazones gigantes de espinas que dejan fuego en el suelo)"
+        },
+        "Revolving Horseshoes": {
+            2: "+herradura (Lanza 3 herraduras magnéticas)",
+            3: "+daño (Daño base incrementado)",
+            4: "+herradura (Lanza 4 herraduras)",
+            5: "Steel Upgrade (Herraduras gigantes de acero: escala de tamaño x1.4 y daño)",
+            6: "+duración (Giran durante más tiempo en pantalla)",
+            7: "+herradura (Lanza 5 herraduras místicas)",
+            8: "+10 daño (Aumenta el daño plano considerablemente)",
+            9: "+herradura (Lanza un total de 6 herraduras)",
+            10: "Obsidian Upgrade (Herraduras de obsidiana ígneas que disparan astillas místicas)"
+        },
+        "Slicing Cards": {
+            2: "+daño (La potencia base de las cartas aumenta)",
+            3: "atraviesa enemigos (Las cartas perforan de forma de forma infinita)",
+            4: "+velocidad (Velocidad de viaje mística aumentada)",
+            5: "Four Suits (Dispara 4 cartas en cruz con efectos únicos de trébol, diamante y corazón)",
+            6: "+daño (Fuerza base incrementada)",
+            7: "más penetración (Daño continuo sin merma tras cada impacto)",
+            8: "+velocidad (Las cartas vuelan con gran aceleración)",
+            9: "+daño (Multiplicador final de daño)",
+            10: "Card Shuffle (Un tornado salvaje giratorio de cartas te envuelve de forma permanente)"
+        },
+        "Speeding Arrows": {
+            2: "+flecha (Lanza 2 flechas a la vez)",
+            3: "+daño (Aumenta el impacto)",
+            4: "+flecha (Dispara 3 flechas en arco)",
+            5: "upgrade (Aumenta la probabilidad crítica drásticamente con estela de luz)",
+            6: "atraviesa enemigos (Las flechas perforan 2 objetivos en fila)",
+            7: "+velocidad (La velocidad de flecha alcanza límites extremos)",
+            8: "+2 flechas (Dispara un total de 5 flechas en abanico continuo)",
+            9: "más penetración (Atraviesa múltiples objetivos adicionales)",
+            10: "Enchanted Upgrade (¡Las flechas se teletransportan al impactar desatando rayos!)"
+        },
+        "Sticky Syrup": {
+            2: "+syrup (Derrama charcos pegajosos con mayor frecuencia)",
+            3: "+syrup (Derrama charcos de sirope dobles)",
+            4: "charcos grandes (Suma un 50% de rango y tamaño al charco)",
+            5: "+syrup (Crea charcos de sirope triples)",
+            6: "Big Puddles (Charcos masivos pegajosos gigantes)",
+            7: "+10 daño (Enemigos sufren daño plano masivo por segundo de quemadura)",
+            8: "+syrup (Suma un cuarto charco de sirope simultáneo)",
+            9: "+duración (Los charcos persisten en el campo de batalla por 8 segundos)",
+            10: "Dropzone (¡El sirope de arce cubre casi toda la pantalla ralentizando un 85%!)"
+        },
+        "Whirling Bones": {
+            2: "+daño (Huesos afilados con mayor daño)",
+            3: "huesos grandes (Aumenta drásticamente el área del hueso)",
+            4: "atraviesa enemigos (Huesos que perforan 3 enemigos adicionales)",
+            5: "More Bones (Lanza 4 pares de hélices dobles de huesos simultáneos)",
+            6: "+daño (Daño base escalado)",
+            7: "más penetración (Huesos que perforan casi toda la horda)",
+            8: "huesos grandes (El área de impacto de los huesos se vuelve inmensa)",
+            9: "+daño (Fuerza destructiva definitiva)",
+            10: "Bone Rampage (Invoca una tormenta salvaje mística de esqueletos y cráneos gigantes)"
+        }
+    };
+
+    if (name in db && lvl in db[name]) {
+        return db[name][lvl];
+    }
+    return `Mejora de rendimiento para tu poder místico de ${name}.`;
+}
+
+/**
+ * STREAMING_CHUNK: Setting up the draft level selection overlay logic
+ */
+
+function triggerDraft() {
+    currentState = GAME_STATE.LEVEL_UP;
+    document.getElementById('level-up-screen').classList.remove('hidden');
+    
+    let draftPool = [];
+
+    // 1. Mejoras para armas que ya tiene el jugador
+    player.weapons.forEach(w => {
+        let maxLvl = (w.name === "Dark Energy" ? 8 : (w.name === "Juggling Spheres" ? 9 : 10));
+        if (w.level < maxLvl) {
+            let nextLvl = w.level + 1;
+            let desc = getWeaponUpgradeDesc(w.name, nextLvl);
+            draftPool.push({
+                id: `upgrade_${w.name}_${nextLvl}`,
+                title: `✨ ${w.name} (Nvl ${nextLvl})`,
+                desc: desc,
+                apply: () => {
+                    w.applyUpgrade(nextLvl);
+                }
+            });
+        }
+    });
+
+    // 2. Descubrir armas nuevas que el jugador no tiene aún
+    const allWeaponNames = [
+        "Rapid Eggs", "Dark Energy", "Boomerang Pizza", "Booming Bubbles", "Bouncy Slime",
+        "Buzzing Bees", "Crazy Acorns", "Curving Banana", "Flying Feathers", "Juggling Spheres",
+        "Peacock Feathers", "Rapid-Fire Lasers", "Rebounding Shells", "Revolving Horseshoes",
+        "Slicing Cards", "Speeding Arrows", "Sticky Syrup", "Whirling Bones"
+    ];
+    
+    allWeaponNames.forEach(name => {
+        let hasWeapon = player.weapons.some(w => w.name === name);
+        if (!hasWeapon) {
+            let desc = getWeaponUpgradeDesc(name, 1);
+            draftPool.push({
+                id: `acquire_${name}`,
+                title: `🆕 Obtener ${name}`,
+                desc: desc,
+                apply: () => {
+                    let newW;
+                    if (name === "Rapid Eggs") newW = new RapidEggsWeapon(player);
+                    else if (name === "Dark Energy") newW = new DarkEnergyWeapon(player);
+                    else if (name === "Boomerang Pizza") newW = new BoomerangPizzaWeapon(player);
+                    else if (name === "Booming Bubbles") newW = new BoomingBubblesWeapon(player);
+                    else if (name === "Bouncy Slime") newW = new BouncySlimeWeapon(player);
+                    else if (name === "Buzzing Bees") newW = new BuzzingBeesWeapon(player);
+                    else if (name === "Crazy Acorns") newW = new CrazyAcornsWeapon(player);
+                    else if (name === "Curving Banana") newW = new CurvingBananaWeapon(player);
+                    else if (name === "Flying Feathers") newW = new FlyingFeathersWeapon(player);
+                    else if (name === "Juggling Spheres") newW = new JugglingSpheresWeapon(player);
+                    else if (name === "Peacock Feathers") newW = new PeacockFeathersWeapon(player);
+                    else if (name === "Rapid-Fire Lasers") newW = new RapidFireLasersWeapon(player);
+                    else if (name === "Rebounding Shells") newW = new ReboundingShellsWeapon(player);
+                    else if (name === "Revolving Horseshoes") newW = new RevolvingHorseshoesWeapon(player);
+                    else if (name === "Slicing Cards") newW = new SlicingCardsWeapon(player);
+                    else if (name === "Speeding Arrows") newW = new SpeedingArrowsWeapon(player);
+                    else if (name === "Sticky Syrup") newW = new StickySyrupWeapon(player);
+                    else if (name === "Whirling Bones") newW = new WhirlingBonesWeapon(player);
+                    
+                    if (newW) {
+                        newW.level = 1;
+                        newW.applyUpgrade(1);
+                        player.weapons.push(newW);
+                    }
+                }
+            });
+        }
+    });
+
+    // 3. Mejoras de estadísticas generales por defecto
+    draftPool.push({ id: 'stat_dmg', title: '💪 Daño Base +', desc: 'Aumenta todo tu daño místico y físico un 20%', apply: () => player.baseDamageMult += 0.2 });
+    draftPool.push({ id: 'stat_crit', title: '🎯 Ojo Crítico', desc: 'Probabilidad de asestar daño crítico +10%', apply: () => player.critChance += 0.1 });
+    draftPool.push({ id: 'stat_hp', title: '❤️ Salud Máxima', desc: 'Aumenta tu capacidad de vida en +30 HP', apply: () => { player.maxHp += 30; player.hp += 30; } });
+    draftPool.push({ id: 'stat_speed', title: '🥾 Botas Ligeras', desc: 'Aumenta la velocidad de movimiento un 15%', apply: () => player.speed *= 1.15 });
+
+    let shuffled = draftPool.sort(() => 0.5 - Math.random());
+    let choices = shuffled.slice(0, 3);
+    
+    const container = document.getElementById('draft-options');
+    container.innerHTML = '';
+    
+    choices.forEach(choice => {
+        const btn = document.createElement('button');
+        btn.className = 'glass-panel p-6 rounded-xl hover:bg-gray-700/80 transition-all text-left border-2 border-transparent hover:border-yellow-400 group cursor-pointer';
+        btn.innerHTML = `
+            <h3 class="text-2xl font-bold text-white group-hover:text-yellow-400">${choice.title}</h3>
+            <p class="text-gray-400 mt-2">${choice.desc}</p>
+        `;
+        btn.onclick = () => {
+            choice.apply();
+            updateHUD();
+            document.getElementById('level-up-screen').classList.add('hidden');
+            currentState = GAME_STATE.PLAYING;
+            lastTime = performance.now();
+        };
+        container.appendChild(btn);
+    });
+}
+
+/**
+ * STREAMING_CHUNK: Managing player and upgraded enemy logic
+ */
+
+class Player {
+    constructor() {
+        this.reset();
+    }
+    reset() {
+        this.x = width / 2;
+        this.y = height / 2;
+        this.radius = 20;
+        this.speed = 220;
+        this.maxHp = 100;
+        this.hp = 100;
+        this.level = 1;
+        this.xp = 0;
+        this.maxXp = getXpForLevel(2); 
+        this.baseDamageMult = 1.0;
+        this.critChance = 0.05;
+        this.critMult = 1.5;
+        this.weapons = [new RapidEggsWeapon(this)];
+    }
+    update(dt) {
+        let dx = 0, dy = 0;
+        if (touchActive) {
+            dx = touchMoveX - touchStartX;
+            dy = touchMoveY - touchStartY;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 10) { dx /= dist; dy /= dist; } else { dx = 0; dy = 0; }
+        } else {
+            if (keys.w || keys.arrowup) dy -= 1;
+            if (keys.s || keys.arrowdown) dy += 1;
+            if (keys.a || keys.arrowleft) dx -= 1;
+            if (keys.d || keys.arrowright) dx += 1;
+            if (dx !== 0 && dy !== 0) {
+                const length = Math.sqrt(dx*dx + dy*dy);
+                dx /= length; dy /= length;
+            }
+        }
+        this.x += dx * this.speed * dt;
+        this.y += dy * this.speed * dt;
+        this.x = Math.max(-1000, Math.min(width + 1000, this.x));
+        this.y = Math.max(-1000, Math.min(height + 1000, this.y));
+        this.weapons.forEach(w => w.update(dt));
+    }
+    draw(ctxCanvas, camX, camY) {
+        const px = this.x - camX;
+        const py = this.y - camY;
+        const r = this.radius;
+
+        const bounce = 1 + Math.sin(animationTime * 12) * 0.05;
+
+        ctxCanvas.save();
+        ctxCanvas.translate(px, py);
+
+        // Sombra de personaje (Estática e independiente de las oscilaciones de rebote del cuerpo)
+        ctxCanvas.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctxCanvas.beginPath();
+        ctxCanvas.ellipse(0, r - 2, r * 1.1, 6, 0, 0, Math.PI * 2);
+        ctxCanvas.fill();
+
+        // Escalar la matriz de transformación para que encaje con el radio y aplicar efecto squash/stretch
+        ctxCanvas.scale((r / 20) * (2 - bounce), (r / 20) * bounce);
+        
+        // Trasladar el origen al centro del modelo de diseño vectorial de la tienda (dimensiones fijas de 64x64)
+        // El cuerpo del slime abarca x=12..52 e y=18..48, por lo que su centro geométrico aproximado es (32, 34)
+        ctxCanvas.translate(-32, -34);
+
+        if (currentSkinId === 'verde') {
+            let grad = ctxCanvas.createRadialGradient(32, 30, 0, 32, 30, 20);
+            grad.addColorStop(0, '#4ade80');
+            grad.addColorStop(1, '#166534');
+            ctxCanvas.fillStyle = grad;
+            
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(12, 40);
+            ctxCanvas.bezierCurveTo(12, 18, 52, 18, 52, 40);
+            ctxCanvas.bezierCurveTo(52, 48, 44, 48, 32, 48);
+            ctxCanvas.bezierCurveTo(20, 48, 12, 48, 12, 40);
+            ctxCanvas.closePath();
+            ctxCanvas.fill();
+
+            // Ojos con brillo místico
+            ctxCanvas.fillStyle = 'white';
+            ctxCanvas.beginPath(); ctxCanvas.arc(24, 34, 4.5, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.arc(40, 34, 4.5, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.fillStyle = 'black';
+            ctxCanvas.beginPath(); ctxCanvas.arc(24, 34, 2, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.arc(40, 34, 2, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.fillStyle = 'white';
+            ctxCanvas.beginPath(); ctxCanvas.arc(25.5, 32.5, 1, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.arc(41.5, 32.5, 1, 0, Math.PI * 2); ctxCanvas.fill();
+
+            // Sonrisa
+            ctxCanvas.strokeStyle = 'white';
+            ctxCanvas.lineWidth = 2;
+            ctxCanvas.lineCap = 'round';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(28, 40);
+            ctxCanvas.quadraticCurveTo(32, 43, 36, 40);
+            ctxCanvas.stroke();
+
+            // Rubor adorable en mejillas
+            ctxCanvas.save();
+            ctxCanvas.globalAlpha = 0.6;
+            ctxCanvas.fillStyle = '#f87171';
+            ctxCanvas.beginPath(); ctxCanvas.ellipse(20, 37, 2.5, 1.5, 0, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.ellipse(44, 37, 2.5, 1.5, 0, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.restore();
+
+        } else if (currentSkinId === 'rojo') {
+            let grad = ctxCanvas.createRadialGradient(32, 30, 0, 32, 30, 22);
+            grad.addColorStop(0, '#f97316');
+            grad.addColorStop(1, '#7f1d1d');
+            ctxCanvas.fillStyle = grad;
+
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(10, 40);
+            ctxCanvas.bezierCurveTo(8, 20, 56, 20, 54, 40);
+            ctxCanvas.bezierCurveTo(54, 46, 44, 48, 32, 48);
+            ctxCanvas.bezierCurveTo(20, 48, 10, 46, 10, 40);
+            ctxCanvas.closePath();
+            ctxCanvas.fill();
+
+            // Cejas y marcos enfurecidos
+            ctxCanvas.strokeStyle = '#facc15';
+            ctxCanvas.lineWidth = 2;
+            ctxCanvas.lineCap = 'round';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(16, 38); ctxCanvas.quadraticCurveTo(22, 30, 26, 38);
+            ctxCanvas.moveTo(38, 38); ctxCanvas.quadraticCurveTo(42, 32, 46, 38);
+            ctxCanvas.stroke();
+
+            // Cuernos magmáticos
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(20, 28); ctxCanvas.lineTo(28, 32);
+            ctxCanvas.moveTo(44, 28); ctxCanvas.lineTo(36, 32);
+            ctxCanvas.stroke();
+
+            // Ojos de fuego ardiente
+            ctxCanvas.fillStyle = '#facc15';
+            ctxCanvas.beginPath(); ctxCanvas.arc(24, 33, 3.5, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.arc(40, 33, 3.5, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.fillStyle = '#7f1d1d';
+            ctxCanvas.beginPath(); ctxCanvas.arc(24, 33, 1.5, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.arc(40, 33, 1.5, 0, Math.PI * 2); ctxCanvas.fill();
+
+            // Boca ardiente
+            ctxCanvas.strokeStyle = '#facc15';
+            ctxCanvas.lineWidth = 2;
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(28, 41); ctxCanvas.quadraticCurveTo(32, 37, 36, 41);
+            ctxCanvas.stroke();
+
+        } else if (currentSkinId === 'azul') {
+            // Picos de hielo traseros congelados
+            ctxCanvas.fillStyle = '#93c5fd';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(20, 18); ctxCanvas.lineTo(26, 26); ctxCanvas.lineTo(14, 28);
+            ctxCanvas.closePath();
+            ctxCanvas.fill();
+
+            ctxCanvas.fillStyle = '#bfdbfe';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(32, 12); ctxCanvas.lineTo(37, 24); ctxCanvas.lineTo(27, 24);
+            ctxCanvas.closePath();
+            ctxCanvas.fill();
+
+            ctxCanvas.fillStyle = '#93c5fd';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(44, 18); ctxCanvas.lineTo(50, 28); ctxCanvas.lineTo(38, 26);
+            ctxCanvas.closePath();
+            ctxCanvas.fill();
+
+            // Cuerpo de hielo
+            let grad = ctxCanvas.createRadialGradient(32, 30, 0, 32, 30, 20);
+            grad.addColorStop(0, '#60a5fa');
+            grad.addColorStop(1, '#1e3a8a');
+            ctxCanvas.fillStyle = grad;
+
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(12, 40);
+            ctxCanvas.bezierCurveTo(12, 22, 52, 22, 52, 40);
+            ctxCanvas.bezierCurveTo(52, 48, 44, 48, 32, 48);
+            ctxCanvas.bezierCurveTo(20, 48, 12, 48, 12, 40);
+            ctxCanvas.closePath();
+            ctxCanvas.fill();
+
+            // Línea de brillo helada
+            ctxCanvas.save();
+            ctxCanvas.globalAlpha = 0.6;
+            ctxCanvas.strokeStyle = 'white';
+            ctxCanvas.lineWidth = 1.5;
+            ctxCanvas.lineCap = 'round';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(16, 32); ctxCanvas.lineTo(22, 30);
+            ctxCanvas.stroke();
+            ctxCanvas.restore();
+
+            // Ojos gélidos
+            ctxCanvas.fillStyle = 'white';
+            ctxCanvas.beginPath(); ctxCanvas.arc(24, 34, 4.5, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.arc(40, 34, 4.5, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.fillStyle = '#1d4ed8';
+            ctxCanvas.beginPath(); ctxCanvas.arc(24, 34, 2, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.arc(40, 34, 2, 0, Math.PI * 2); ctxCanvas.fill();
+
+            // Cicatriz fría / Expresión seria
+            ctxCanvas.strokeStyle = 'white';
+            ctxCanvas.lineWidth = 2;
+            ctxCanvas.lineCap = 'round';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(28, 40); ctxCanvas.lineTo(36, 33);
+            ctxCanvas.stroke();
+
+        } else if (currentSkinId === 'purpura') {
+            let grad = ctxCanvas.createRadialGradient(32, 30, 0, 32, 30, 22);
+            grad.addColorStop(0, '#c084fc');
+            grad.addColorStop(1, '#3b0764');
+            ctxCanvas.fillStyle = grad;
+
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(10, 40);
+            ctxCanvas.bezierCurveTo(10, 16, 54, 16, 54, 40);
+            ctxCanvas.bezierCurveTo(54, 49, 42, 50, 32, 50);
+            ctxCanvas.bezierCurveTo(22, 50, 10, 49, 10, 40);
+            ctxCanvas.closePath();
+            ctxCanvas.fill();
+
+            // Constelaciones / Estrellas
+            ctxCanvas.fillStyle = '#d8b4fe';
+            ctxCanvas.beginPath(); ctxCanvas.arc(16, 20, 2.5, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.arc(48, 22, 1.5, 0, Math.PI * 2); ctxCanvas.fill();
+
+            // Ojo gigante del vacío estelar
+            ctxCanvas.fillStyle = '#f43f5e';
+            ctxCanvas.beginPath(); ctxCanvas.arc(32, 32, 8, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.fillStyle = 'white';
+            ctxCanvas.beginPath(); ctxCanvas.arc(32, 32, 3, 0, Math.PI * 2); ctxCanvas.fill();
+            ctxCanvas.fillStyle = '#3b0764';
+            ctxCanvas.beginPath(); ctxCanvas.arc(34, 30, 1, 0, Math.PI * 2); ctxCanvas.fill();
+
+            // Ceja misteriosa
+            ctxCanvas.strokeStyle = '#3b0764';
+            ctxCanvas.lineWidth = 3;
+            ctxCanvas.lineCap = 'round';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(24, 26); ctxCanvas.quadraticCurveTo(32, 23, 40, 26);
+            ctxCanvas.stroke();
+
+            // Boca cósmica
+            ctxCanvas.strokeStyle = '#f43f5e';
+            ctxCanvas.lineWidth = 2;
+            ctxCanvas.lineCap = 'round';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(26, 41); ctxCanvas.quadraticCurveTo(32, 44, 38, 41);
+            ctxCanvas.stroke();
+
+        } else if (currentSkinId === 'dorado') {
+            // Corona real del soberano (Detrás del cuerpo)
+            ctxCanvas.fillStyle = '#fbbf24';
+            ctxCanvas.strokeStyle = '#78350f';
+            ctxCanvas.lineWidth = 1.5;
+            ctxCanvas.lineJoin = 'round';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(20, 24);
+            ctxCanvas.lineTo(24, 14);
+            ctxCanvas.lineTo(32, 20);
+            ctxCanvas.lineTo(40, 14);
+            ctxCanvas.lineTo(44, 24);
+            ctxCanvas.closePath();
+            ctxCanvas.fill();
+            ctxCanvas.stroke();
+
+            ctxCanvas.fillStyle = '#f43f5e';
+            ctxCanvas.beginPath(); ctxCanvas.arc(32, 20, 2.5, 0, Math.PI*2); ctxCanvas.fill();
+
+            // Cuerpo dorado reluciente
+            let grad = ctxCanvas.createLinearGradient(12, 18, 52, 48);
+            grad.addColorStop(0, '#fef08a');
+            grad.addColorStop(0.5, '#eab308');
+            grad.addColorStop(1, '#854d0e');
+            ctxCanvas.fillStyle = grad;
+
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(12, 40);
+            ctxCanvas.bezierCurveTo(12, 18, 52, 18, 52, 40);
+            ctxCanvas.bezierCurveTo(52, 48, 44, 48, 32, 48);
+            ctxCanvas.bezierCurveTo(20, 48, 12, 48, 12, 40);
+            ctxCanvas.closePath();
+            ctxCanvas.fill();
+
+            // Gafas de sol negras del Rey
+            ctxCanvas.strokeStyle = '#78350f';
+            ctxCanvas.lineWidth = 2.5;
+            ctxCanvas.beginPath(); ctxCanvas.arc(23, 33, 5, 0, Math.PI*2); ctxCanvas.stroke();
+            ctxCanvas.beginPath(); ctxCanvas.arc(41, 33, 5, 0, Math.PI*2); ctxCanvas.stroke();
+            ctxCanvas.lineWidth = 2;
+            ctxCanvas.beginPath(); ctxCanvas.moveTo(28, 33); ctxCanvas.lineTo(36, 33); ctxCanvas.stroke();
+
+            // Ojos negros detrás de los lentes
+            ctxCanvas.fillStyle = 'black';
+            ctxCanvas.beginPath(); ctxCanvas.arc(24, 33, 1.5, 0, Math.PI*2); ctxCanvas.fill();
+            ctxCanvas.beginPath(); ctxCanvas.arc(40, 33, 1.5, 0, Math.PI*2); ctxCanvas.fill();
+
+            // Sonrisa del Soberano
+            ctxCanvas.strokeStyle = '#78350f';
+            ctxCanvas.lineWidth = 2;
+            ctxCanvas.lineCap = 'round';
+            ctxCanvas.beginPath();
+            ctxCanvas.moveTo(26, 39); ctxCanvas.quadraticCurveTo(32, 43, 38, 39);
+            ctxCanvas.stroke();
+        }
+
+        ctxCanvas.restore();
+
+        this.weapons.forEach(w => {
+            if (w.draw) w.draw(ctxCanvas, camX, camY);
+        });
+    }
+    takeDamage(amount) {
+        this.hp -= amount;
+        updateHUD();
+        if (this.hp <= 0) gameOver();
+    }
+    addXp(amount) {
+        this.xp += amount;
+        if (this.xp >= this.maxXp) {
+            this.xp -= this.maxXp;
+            this.levelUp();
+        }
+        updateHUD();
+    }
+    levelUp() {
+        this.level++;
+        this.maxXp = getXpForLevel(this.level + 1); 
+        this.hp = Math.min(this.maxHp, this.hp + 20);
+        triggerDraft();
+    }
+}
+
+class Enemy {
+    constructor() { this.active = false; }
+    spawn(x, y, hp, speed, damage, radius, color) {
+        this.x = x; this.y = y;
+        this.maxHp = hp; this.hp = hp;
+        this.baseSpeed = speed; this.speed = speed;
+        this.damage = damage; this.radius = radius;
+        this.color = color; this.active = true;
+        this.knockbackX = 0; this.knockbackY = 0;
+    }
+    update(dt, px, py) {
+        let dx = px - this.x;
+        let dy = py - this.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        this.x += (dx/dist) * this.speed * dt;
+        this.y += (dy/dist) * this.speed * dt;
+        this.x += this.knockbackX * dt;
+        this.y += this.knockbackY * dt;
+        this.knockbackX *= 0.9;
+        this.knockbackY *= 0.9;
+    }
+    draw(ctxCanvas, camX, camY) {
+        ctxCanvas.save();
+        ctxCanvas.translate(this.x - camX, this.y - camY);
+        ctxCanvas.fillStyle = this.color;
+        ctxCanvas.beginPath();
+        ctxCanvas.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctxCanvas.fill();
+        ctxCanvas.restore();
+    }
+    takeDamage(amount, isCrit, kx, ky) {
+        this.hp -= amount;
+        this.knockbackX = kx * 300;
+        this.knockbackY = ky * 300;
+        spawnFloatingText(this.x, this.y, Math.floor(amount), isCrit);
+        if (this.hp <= 0) {
+            this.active = false;
+            spawnXpOrb(this.x, this.y, 1);
+            return true;
+        }
+        return false;
+    }
+}
+
+/**
+ * STREAMING_CHUNK: Running main game rendering loop and collision detection
+ */
+
+class Projectile {
+    constructor() { this.active = false; }
+    spawn(x, y, vx, vy, speed, damage, size, color, isCrit, pierce = 1) {
+        this.x = x; this.y = y;
+        this.vx = vx; this.vy = vy;
+        this.speed = speed; this.damage = damage;
+        this.radius = size; this.color = color;
+        this.isCrit = isCrit; this.pierce = pierce;
+        this.active = true;
+        this.life = 2.0;
+        this.hitTargets = new Set();
+        this.customUpdate = null;
+        this.customDraw = null;
+        this.customOnHit = null;
+    }
+    update(dt) {
+        if (this.customUpdate) { this.customUpdate(dt); } else {
+            this.x += this.vx * this.speed * dt;
+            this.y += this.vy * this.speed * dt;
+            this.life -= dt;
+            if (this.life <= 0) this.active = false;
+        }
+    }
+    draw(ctxCanvas, camX, camY) {
+        if (this.customDraw) { this.customDraw(ctxCanvas, camX, camY); } else {
+            ctxCanvas.save();
+            ctxCanvas.translate(this.x - camX, this.y - camY); // FIXED: proj.y replaced with this.y to prevent ReferenceError
+            ctxCanvas.fillStyle = this.color;
+            ctxCanvas.beginPath();
+            ctxCanvas.arc(0, 0, this.radius, 0, Math.PI * 2);
+            ctxCanvas.fill();
+            ctxCanvas.restore();
+        }
+    }
+}
+
+class EnemyProjectile {
+    constructor() { this.active = false; }
+    spawn(x, y, vx, vy, speed, damage, radius, color) {
+        this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+        this.speed = speed; this.damage = damage; this.radius = radius; this.color = color;
+        this.active = true; this.life = 3.5;
+    }
+    update(dt) {
+        this.x += this.vx * this.speed * dt;
+        this.y += this.vy * this.speed * dt;
+        this.life -= dt;
+        if (this.life <= 0) this.active = false;
+    }
+    draw(ctxCanvas, camX, camY) {
+        ctxCanvas.save();
+        ctxCanvas.translate(this.x - camX, this.y - camY);
+        ctxCanvas.fillStyle = this.color;
+        ctxCanvas.beginPath();
+        ctxCanvas.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctxCanvas.fill();
+        ctxCanvas.restore();
+    }
+}
+
+class XpOrb {
+    constructor() { this.active = false; }
+    spawn(x, y, value) { this.x = x; this.y = y; this.value = value; this.radius = 5; this.active = true; }
+    draw(ctxCanvas, camX, camY) {
+        ctxCanvas.save();
+        ctxCanvas.translate(this.x - camX, this.y - camY);
+        ctxCanvas.fillStyle = '#3b82f6';
+        ctxCanvas.beginPath();
+        ctxCanvas.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctxCanvas.fill();
+        ctxCanvas.restore();
+    }
+}
+
+class FloatingText {
+    constructor() { this.active = false; }
+    spawn(x, y, text, isCrit) {
+        this.x = x; this.y = y - 10; this.text = text; this.isCrit = isCrit; this.active = true; this.life = 0.5; this.maxLife = 0.5;
+    }
+    update(dt) {
+        this.y -= 35 * dt;
+        this.life -= dt;
+        if (this.life <= 0) this.active = false;
+    }
+    draw(ctxCanvas, camX, camY) {
+        ctxCanvas.save();
+        ctxCanvas.fillStyle = this.isCrit ? '#facc15' : '#f87171';
+        ctxCanvas.font = 'bold 15px sans-serif';
+        ctxCanvas.fillText(this.text, this.x - camX, this.y - camY);
+        ctxCanvas.restore();
+    }
+}
+
+// --- BUCLE PRINCIPAL Y LÓGICA DE JUEGO ---
+function initGame(difficulty) {
+    currentDifficulty = difficulty || 'normal';
+    player = new Player();
+    gameTimer = 0; spawnTimer = 0; animationTime = 0; touchActive = false;
+    
+    enemies.forEach(e => { if(e.active) enemyPool.release(e); e.active = false; });
+    projectiles.forEach(p => { if(p.active) projectilePool.release(p); p.active = false; });
+    enemyProjectiles.forEach(ep => { if(ep.active) enemyProjPool.release(ep); ep.active = false; });
+    xpOrbs.forEach(o => { if(o.active) xpPool.release(o); o.active = false; });
+    floatingTexts.forEach(t => { if(t.active) textPool.release(t); t.active = false; });
+    
+    enemies.length = 0; projectiles.length = 0; enemyProjectiles.length = 0; xpOrbs.length = 0; floatingTexts.length = 0; visualEffects.length = 0;
+
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+    
+    updateHUD();
+    currentState = GAME_STATE.PLAYING;
+    lastTime = performance.now();
+    requestAnimationFrame(gameLoop);
+}
+
+function formatTime(secs) {
+    let m = Math.floor(secs / 60);
+    let s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+function updateHUD() {
+    document.getElementById('ui-level').innerText = player.level;
+    document.getElementById('ui-hp').innerText = Math.max(0, Math.floor(player.hp));
+    document.getElementById('ui-max-hp').innerText = player.maxHp;
+    document.getElementById('ui-xp-bar').style.width = `${(player.xp / player.maxXp) * 100}%`;
+    document.getElementById('ui-time').innerText = formatTime(gameTimer);
+    document.getElementById('ui-diff-badge').innerText = currentDifficulty;
+}
+
+function gameOver() {
+    currentState = GAME_STATE.GAME_OVER;
+    const pts = player.level * 120;
+    totalPoints += pts;
+    document.getElementById('hud').classList.add('hidden');
+    document.getElementById('game-over-screen').classList.remove('hidden');
+    document.getElementById('go-time').innerText = formatTime(gameTimer);
+    document.getElementById('go-level').innerText = player.level;
+    document.getElementById('go-points').innerText = `Puntos Obtenidos: +${pts} (Total: ${totalPoints})`;
+}
+
+function cleanPools() {
+    for (let i = enemies.length - 1; i >= 0; i--) { if (!enemies[i].active) { enemyPool.release(enemies[i]); enemies.splice(i, 1); } }
+    for (let i = projectiles.length - 1; i >= 0; i--) { if (!projectiles[i].active) { projectilePool.release(projectiles[i]); projectiles.splice(i, 1); } }
+    for (let i = enemyProjectiles.length - 1; i >= 0; i--) { if (!enemyProjectiles[i].active) { enemyProjPool.release(enemyProjectiles[i]); enemyProjectiles.splice(i, 1); } }
+    for (let i = xpOrbs.length - 1; i >= 0; i--) { if (!xpOrbs[i].active) { xpPool.release(xpOrbs[i]); xpOrbs.splice(i, 1); } }
+    for (let i = floatingTexts.length - 1; i >= 0; i--) { if (!floatingTexts[i].active) { textPool.release(floatingTexts[i]); floatingTexts.splice(i, 1); } }
+}
+
+function gameLoop(timestamp) {
+    if (currentState !== GAME_STATE.PLAYING) {
+        lastTime = timestamp;
+        if (currentState === GAME_STATE.GAME_OVER || currentState === GAME_STATE.LEVEL_UP) {
+            requestAnimationFrame(gameLoop);
+        }
+        return;
+    }
+
+    const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+    lastTime = timestamp;
+    gameTimer += dt;
+    animationTime += dt;
+
+    player.update(dt);
+    updateWaveSpawner(dt);
+
+    enemyGrid.clear();
+    for (let i = 0; i < enemies.length; i++) {
+        if (enemies[i].active) {
+            enemies[i].speed = enemies[i].baseSpeed;
+        }
+    }
+
+    for (let i = visualEffects.length - 1; i >= 0; i--) {
+        let fx = visualEffects[i];
+        fx.life -= dt;
+        if (fx.life <= 0) { visualEffects.splice(i, 1); } else {
+            if (fx.radius !== undefined && fx.maxRadius !== undefined) fx.radius = fx.maxRadius * (1 - fx.life / fx.maxLife);
+            if (fx.updateSlows) fx.updateSlows(enemies, player, dt);
+        }
+    }
+
+    for (let i = 0; i < enemies.length; i++) {
+        if (enemies[i].active) {
+            enemies[i].update(dt, player.x, player.y);
+            enemyGrid.insert(enemies[i]);
+        }
+    }
+
+    for (let i = 0; i < projectiles.length; i++) {
+        let p = projectiles[i];
+        if (!p.active) continue;
+        p.update(dt);
+        
+        const nearbyEnemies = enemyGrid.getNearby(p.x, p.y, p.radius + 20);
+        for (let e of nearbyEnemies) {
+            if (!e.active || p.hitTargets.has(e)) continue;
+            let dSq = distSq(p.x, p.y, e.x, e.y);
+            let rSum = p.radius + e.radius;
+            if (dSq < rSum * rSum) {
+                p.hitTargets.add(e);
+                e.takeDamage(p.damage, p.isCrit, p.vx, p.vy);
+                if (p.customOnHit) { p.customOnHit(e); } else {
+                    p.pierce--;
+                    if (p.pierce <= 0) { p.active = false; break; }
+                }
+            }
+        }
+    }
+
+    const nearbyToPlayer = enemyGrid.getNearby(player.x, player.y, player.radius + 30);
+    for (let e of nearbyToPlayer) {
+        if (!e.active) continue;
+        let dSq = distSq(player.x, player.y, e.x, e.y);
+        let rSum = player.radius + e.radius;
+        if (dSq < rSum * rSum) {
+            player.takeDamage(e.damage * dt);
+        }
+    }
+
+    for (let i = 0; i < xpOrbs.length; i++) {
+        let orb = xpOrbs[i];
+        if (!orb.active) continue;
+        let dx = player.x - orb.x;
+        let dy = player.y - orb.y;
+        let dSq = dx*dx + dy*dy;
+        if (dSq < 10000) {
+            let dist = Math.sqrt(dSq);
+            orb.x += (dx/dist) * 320 * dt;
+            orb.y += (dy/dist) * 320 * dt;
+        }
+        if (dSq < (player.radius + orb.radius)**2) {
+            player.addXp(orb.value);
+            orb.active = false;
+        }
+    }
+
+    floatingTexts.forEach(ft => { if(ft.active) ft.update(dt); });
+    cleanPools();
+
+    const camX = player.x - width / 2;
+    const camY = player.y - height / 2;
+
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, width, height);
+
+    visualEffects.forEach(fx => {
+        if (fx.draw) { fx.draw(ctx, camX, camY); } else {
+            ctx.save();
+            ctx.fillStyle = fx.color;
+            ctx.beginPath();
+            ctx.arc(fx.x - camX, fx.y - camY, fx.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    });
+
+    xpOrbs.forEach(o => { if(o.active) o.draw(ctx, camX, camY); });
+    enemies.forEach(e => { if(e.active) e.draw(ctx, camX, camY); });
+    player.draw(ctx, camX, camY);
+    projectiles.forEach(p => { if(p.active) p.draw(ctx, camX, camY); });
+    floatingTexts.forEach(ft => { if(ft.active) ft.draw(ctx, camX, camY); });
+
+    requestAnimationFrame(gameLoop);
+}
+
+// --- TIENDA Y CONFIGURACIONES ---
+function openShop() {
+    currentState = GAME_STATE.SHOP;
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('shop-screen').classList.remove('hidden');
+    renderShop();
+}
+
+function renderShop() {
+    document.getElementById('shop-points').innerText = totalPoints;
+    const container = document.getElementById('shop-items');
+    container.innerHTML = '';
+    
+    skinsDB.forEach(skin => {
+        const isUnlocked = unlockedSkins.includes(skin.id);
+        const isEquipped = currentSkinId === skin.id;
+        
+        const btn = document.createElement('button');
+        btn.className = `glass-panel p-6 rounded-xl flex flex-col items-center transition-all transform hover:scale-105 border-2 ${isEquipped ? 'border-green-400 bg-green-900/30' : 'border-transparent hover:border-gray-400'}`;
+        
+        let btnAction = '';
+        if (isEquipped) {
+            btnAction = `<span class="mt-4 px-4 py-2 bg-green-600 text-white rounded font-bold w-full text-center">Equipado</span>`;
+        } else if (isUnlocked) {
+            btnAction = `<span class="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold w-full text-center">Equipar</span>`;
+        } else {
+            const canAfford = totalPoints >= skin.price;
+            btnAction = `<span class="mt-4 px-4 py-2 ${canAfford ? 'bg-yellow-600 hover:bg-yellow-500 text-white' : 'bg-gray-700 text-gray-400'} rounded font-bold w-full text-center flex justify-center items-center gap-1">
+                ${skin.price} pts
+            </span>`;
+        }
+
+        btn.innerHTML = `
+            <div class="mb-4">
+                ${skin.svg}
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1">${skin.name}</h3>
+            ${btnAction}
+        `;
+
+        btn.onclick = () => {
+            if (isUnlocked) {
+                currentSkinId = skin.id;
+                renderShop();
+            } else if (totalPoints >= skin.price) {
+                totalPoints -= skin.price;
+                unlockedSkins.push(skin.id);
+                currentSkinId = skin.id;
+                renderShop();
+            }
+        };
+
+        container.appendChild(btn);
+    });
+}
+
+document.getElementById('btn-start-normal').addEventListener('click', () => initGame('normal'));
+document.getElementById('btn-start-dificil').addEventListener('click', () => initGame('dificil'));
+document.getElementById('btn-start-experto').addEventListener('click', () => initGame('experto'));
+document.getElementById('btn-restart').addEventListener('click', () => initGame(currentDifficulty));
+document.getElementById('btn-to-menu').addEventListener('click', () => {
+    document.getElementById('game-over-screen').classList.add('hidden');
+    document.getElementById('main-menu').classList.remove('hidden');
+    currentState = GAME_STATE.MENU;
+});
+document.getElementById('btn-to-shop-from-go').addEventListener('click', openShop);
+document.getElementById('btn-shop').addEventListener('click', openShop);
+document.getElementById('btn-close-shop').addEventListener('click', () => {
+    document.getElementById('shop-screen').classList.add('hidden');
+    document.getElementById('main-menu').classList.remove('hidden');
+    currentState = GAME_STATE.MENU;
+});
+
+</script>
+</body>
+</html>
