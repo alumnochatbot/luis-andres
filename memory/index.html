@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Juego de Memoria 67 - Number Monsters</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Fredoka', cursive, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    
+    .font-pixel {
+      font-family: 'Press Start 2P', monospace;
+    }
+
+    /* 3D Flip Card Styles */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.45s cubic-bezier(0.4, 0.2, 0.2, 1);
+    }
+
+    .card-flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 1rem;
+    }
+
+    .card-back {
+      transform: rotateY(0deg);
+    }
+
+    .card-front {
+      transform: rotateY(180deg);
+    }
+
+    /* Bounce and wiggle animations */
+    @keyframes matchedBounce {
+      0%, 100% { transform: rotateY(180deg) scale(1); }
+      50% { transform: rotateY(180deg) scale(1.1) translateY(-6px); }
+    }
+
+    .card-matched .card-inner {
+      animation: matchedBounce 0.5s ease-out;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(56, 189, 248, 0.8); }
+    }
+
+    .glow-cyan {
+      animation: pulseGlow 2.5s infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #38bdf8;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white min-h-screen flex flex-col items-center justify-between p-3 sm:p-5 relative overflow-x-hidden">
+  <!-- Dynamic Canvas for Confetti effects -->
+  <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+  <!-- Ambient Background Decor -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10 opacity-25">
+    <div class="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-cyan-600 blur-[100px]"></div>
+    <div class="absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-indigo-600 blur-[100px]"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-blue-500 blur-[120px] opacity-40"></div>
+  </div>
+
+  <!-- Header Section -->
+  <header class="w-full max-w-4xl flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 backdrop-blur-md rounded-2xl px-5 py-3 shadow-xl">
+    <div class="flex items-center gap-3">
+      <!-- Mini "67" Icon Badge -->
+      <div class="w-12 h-12 bg-gradient-to-tr from-cyan-600 to-blue-500 rounded-xl flex items-center justify-center p-1.5 shadow-md shadow-cyan-500/30 border border-cyan-300/40">
+        <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow">
+          <!-- 67 Mini Pixel Art Silhouette -->
+          <rect x="15" y="15" width="30" height="50" rx="6" fill="#38bdf8" stroke="#0284c7" stroke-width="3"/>
+          <circle cx="28" cy="45" r="7" fill="#0f172a" />
+          <circle cx="33" cy="28" r="5" fill="#ffffff" />
+          <circle cx="34" cy="28" r="2.5" fill="#000" />
+          <path d="M52 15 H85 V30 L65 75 H50 L68 30 H52 Z" fill="#38bdf8" stroke="#0284c7" stroke-width="3"/>
+          <circle cx="70" cy="28" r="5" fill="#ffffff" />
+          <circle cx="71" cy="28" r="2.5" fill="#000" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold tracking-wide bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400 bg-clip-text text-transparent">
+          MEMORIA 67
+        </h1>
+        <p class="text-xs text-slate-400 font-medium">¡Encuentra a los monstruos de números!</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 sm:gap-3 flex-wrap justify-center">
+      <!-- Difficulty Select -->
+      <select id="diffSelect" class="bg-slate-800 text-cyan-300 font-semibold text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-700 hover:border-cyan-500 outline-none cursor-pointer transition">
+        <option value="easy">Fácil (6 Pares)</option>
+        <option value="medium" selected>Medio (8 Pares)</option>
+        <option value="hard">Difícil (10 Pares)</option>
+      </select>
+
+      <!-- Audio Mute Button -->
+      <button id="soundBtn" class="p-2.5 rounded-xl bg-slate-800 text-slate-300 hover:text-cyan-400 hover:bg-slate-700/80 border border-slate-700 transition" title="Activar/Silenciar sonido">
+        <svg id="soundIconOn" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z" />
+        </svg>
+        <svg id="soundIconOff" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 hidden text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+        </svg>
+      </button>
+
+      <!-- Restart Button -->
+      <button id="restartBtn" class="flex items-center gap-1.5 bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl transition shadow-lg shadow-cyan-500/20">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span>Reiniciar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Stats Dashboard -->
+  <section class="w-full max-w-4xl grid grid-cols-4 gap-2 sm:gap-4 my-3">
+    <!-- Moves -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-center">
+      <span class="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase tracking-wider block">Movimientos</span>
+      <span id="movesDisplay" class="font-pixel text-base sm:text-xl text-yellow-400">0</span>
+    </div>
+
+    <!-- Matches Found -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-center">
+      <span class="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase tracking-wider block">Pares</span>
+      <span id="pairsDisplay" class="font-pixel text-base sm:text-xl text-cyan-400">0 / 8</span>
+    </div>
+
+    <!-- Timer -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-center">
+      <span class="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase tracking-wider block">Tiempo</span>
+      <span id="timerDisplay" class="font-pixel text-base sm:text-xl text-emerald-400">00:00</span>
+    </div>
+
+    <!-- Combo Racha -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 sm:p-3 text-center">
+      <span class="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase tracking-wider block">Combo</span>
+      <span id="comboDisplay" class="font-pixel text-base sm:text-xl text-pink-400">x0</span>
+    </div>
+  </section>
+
+  <!-- Memory Game Board Container -->
+  <main class="w-full max-w-4xl flex-1 flex items-center justify-center py-2">
+    <div id="gameGrid" class="grid gap-2 sm:gap-3.5 w-full transition-all duration-300 justify-items-stretch">
+      <!-- Cards will be populated by JavaScript -->
+    </div>
+  </main>
+
+  <!-- Footer Tip -->
+  <footer class="w-full max-w-4xl text-center py-2 text-xs text-slate-500 font-medium">
+    ¡Encuentra al legendario monstruo <span class="text-cyan-400 font-bold">67</span> y a su pandilla de números de bloques!
+  </footer>
+
+  <!-- Victory Dialog Modal (Custom, No alert) -->
+  <div id="winModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-slate-900 border-2 border-cyan-400/80 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center shadow-2xl shadow-cyan-500/30 transform scale-95 transition-transform duration-300 glow-cyan">
+      
+      <!-- Big "67" Character Avatar in Victory Modal -->
+      <div class="w-28 h-28 mx-auto -mt-16 mb-3 relative animate-bounce">
+        <svg viewBox="0 0 100 100" class="w-full h-full filter drop-shadow-lg" id="modalHeroSvg"></svg>
+      </div>
+
+      <h2 class="text-2xl sm:text-3xl font-extrabold bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-500 bg-clip-text text-transparent">
+        ¡VICTORIA ÉPICA!
+      </h2>
+      <p class="text-slate-300 text-sm mt-1">¡Has desbloqueado todo el poder del Monstruo 67!</p>
+
+      <!-- Rating Stars -->
+      <div id="starContainer" class="flex justify-center gap-2 my-4 text-3xl text-yellow-400">
+        <span>⭐</span><span>⭐</span><span>⭐</span>
+      </div>
+
+      <!-- Stats Review Box -->
+      <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 grid grid-cols-2 gap-3 text-left my-4 text-sm">
+        <div>
+          <span class="text-slate-400 text-xs block">Tiempo final</span>
+          <span id="winTime" class="font-pixel text-emerald-400 text-sm">00:45</span>
+        </div>
+        <div>
+          <span class="text-slate-400 text-xs block">Movimientos</span>
+          <span id="winMoves" class="font-pixel text-yellow-400 text-sm">18</span>
+        </div>
+        <div>
+          <span class="text-slate-400 text-xs block">Racha Máxima</span>
+          <span id="winCombo" class="font-pixel text-pink-400 text-sm">x4</span>
+        </div>
+        <div>
+          <span class="text-slate-400 text-xs block">Dificultad</span>
+          <span id="winDiff" class="font-semibold text-cyan-300 capitalize text-sm">Medio</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-3 justify-center mt-6">
+        <button id="modalPlayAgainBtn" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold py-3 rounded-xl transition shadow-lg shadow-cyan-500/25 active:scale-95">
+          Jugar de Nuevo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    /* Audio Synthesizer (Zero external dependencies) */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playFlip() {
+        if (this.muted) return;
+        this.init();
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(620, this.ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.08);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      playMatch(combo = 1) {
+        if (this.muted) return;
+        this.init();
+        try {
+          const baseFreq = 440 + Math.min(combo * 60, 400);
+          const notes = [baseFreq, baseFreq * 1.25, baseFreq * 1.5];
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.06);
+            gain.gain.setValueAtTime(0.25, this.ctx.currentTime + idx * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.06 + 0.2);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(this.ctx.currentTime + idx * 0.06);
+            osc.stop(this.ctx.currentTime + idx * 0.06 + 0.22);
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      playMismatch() {
+        if (this.muted) return;
+        this.init();
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(120, this.ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.16);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      playVictory() {
+        if (this.muted) return;
+        this.init();
+        try {
+          const chords = [523.25, 659.25, 783.99, 1046.50]; // C Major arpeggio
+          chords.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.12);
+            gain.gain.setValueAtTime(0.3, this.ctx.currentTime + i * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.12 + 0.5);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(this.ctx.currentTime + i * 0.12);
+            osc.stop(this.ctx.currentTime + i * 0.12 + 0.55);
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // SVG definitions for number characters inspired by voxel/pixel aesthetic
+    const CHARACTERS = [
+      {
+        id: '67',
+        name: 'Monstruo 67',
+        bg: 'from-cyan-900/60 to-blue-950/80 border-cyan-400',
+        badge: 'cyan',
+        // Faithful recreation of user's pixelated/voxel "67" with studs, big eyes & sneakers
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Studded Pixelated Body "6" and "7" in Cyan/Blue -->
+            <!-- Arm Left -->
+            <path d="M12 48 L22 45 L20 54 L12 56 Z" fill="#0284c7" />
+            <rect x="5" y="44" width="10" height="9" rx="2" fill="#f8fafc" />
+            
+            <!-- Leg Left with Studs -->
+            <rect x="33" y="66" width="10" height="20" fill="#38bdf8" />
+            <rect x="33" y="74" width="10" height="5" fill="#0284c7" />
+            <!-- Sneaker Left -->
+            <path d="M29 86 H45 V96 H27 C27 92 29 86 29 86 Z" fill="#cbd5e1" stroke="#475569" stroke-width="1.2"/>
+            <rect x="27" y="93" width="18" height="3" fill="#ffffff" />
+
+            <!-- Leg Right with Studs -->
+            <rect x="58" y="68" width="10" height="18" fill="#38bdf8" />
+            <rect x="58" y="74" width="10" height="5" fill="#0284c7" />
+            <!-- Sneaker Right -->
+            <path d="M55 86 H71 V96 H53 C53 92 55 86 55 86 Z" fill="#cbd5e1" stroke="#475569" stroke-width="1.2"/>
+            <rect x="53" y="93" width="18" height="3" fill="#ffffff" />
+
+            <!-- Body 6 Block -->
+            <path d="M27 18 H50 V34 H39 V46 H48 V68 H27 Z" fill="#38bdf8" stroke="#0369a1" stroke-width="2"/>
+            <rect x="35" y="44" width="7" height="14" fill="#0f172a" />
+            <!-- Brick Grid Texture on 6 -->
+            <rect x="30" y="22" width="4" height="4" fill="#7dd3fc" opacity="0.7"/>
+            <rect x="42" y="22" width="4" height="4" fill="#7dd3fc" opacity="0.7"/>
+            <rect x="30" y="55" width="4" height="4" fill="#7dd3fc" opacity="0.7"/>
+
+            <!-- Body 7 Block (Joined at top) -->
+            <path d="M52 18 H86 V30 L66 68 H55 L72 32 H52 Z" fill="#38bdf8" stroke="#0369a1" stroke-width="2"/>
+            <!-- Brick Grid Texture on 7 -->
+            <rect x="62" y="22" width="4" height="4" fill="#7dd3fc" opacity="0.7"/>
+            <rect x="74" y="22" width="4" height="4" fill="#7dd3fc" opacity="0.7"/>
+            <rect x="61" y="48" width="4" height="4" fill="#7dd3fc" opacity="0.7"/>
+
+            <!-- Arm Right -->
+            <path d="M72 52 L83 66 L77 70 L68 56 Z" fill="#0284c7" />
+            <rect x="78" y="65" width="13" height="11" rx="3" fill="#f8fafc" stroke="#94a3b8" stroke-width="1"/>
+
+            <!-- Googly Eyes -->
+            <!-- Eye on 6 -->
+            <circle cx="34" cy="27" r="7" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
+            <circle cx="35" cy="26" r="3.8" fill="#090d16" />
+            <circle cx="36" cy="25" r="1.3" fill="#ffffff" />
+            
+            <!-- Eye on 7 -->
+            <circle cx="68" cy="28" r="7" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
+            <circle cx="69" cy="27" r="3.8" fill="#090d16" />
+            <circle cx="70" cy="26" r="1.3" fill="#ffffff" />
+          </svg>
+        `
+      },
+      {
+        id: '1',
+        name: 'Monstruo 1',
+        bg: 'from-rose-900/60 to-red-950/80 border-rose-400',
+        badge: 'rose',
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Red Voxel One with Sneaker boots -->
+            <rect x="42" y="70" width="16" height="18" fill="#e11d48" />
+            <rect x="36" y="85" width="28" height="9" rx="3" fill="#475569" stroke="#94a3b8" stroke-width="1"/>
+            <path d="M35 32 L48 20 H62 V72 H46 V34 L35 40 Z" fill="#f43f5e" stroke="#be123c" stroke-width="2"/>
+            <!-- Eye -->
+            <circle cx="53" cy="33" r="7.5" fill="#ffffff" stroke="#1e293b" stroke-width="1.5"/>
+            <circle cx="54" cy="33" r="4" fill="#0f172a"/>
+            <circle cx="56" cy="31" r="1.3" fill="#ffffff"/>
+            <!-- Stud texture -->
+            <circle cx="54" cy="50" r="2.5" fill="#fda4af" />
+            <circle cx="54" cy="62" r="2.5" fill="#fda4af" />
+          </svg>
+        `
+      },
+      {
+        id: '2',
+        name: 'Monstruo 2',
+        bg: 'from-amber-900/60 to-orange-950/80 border-amber-400',
+        badge: 'amber',
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Orange Voxel Two with funny horns -->
+            <path d="M30 32 C30 20 68 18 68 34 C68 48 38 56 34 68 H70 V78 H26 C26 58 54 48 54 36 C54 28 39 28 39 34 Z" fill="#fb923c" stroke="#c2410c" stroke-width="2.2"/>
+            <!-- Horns -->
+            <polygon points="36,22 30,12 42,18" fill="#f97316" />
+            <polygon points="62,22 68,12 56,18" fill="#f97316" />
+            <!-- Big Eye -->
+            <circle cx="50" cy="30" r="7" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
+            <circle cx="51" cy="30" r="3.5" fill="#0f172a"/>
+            <!-- Feet -->
+            <rect x="28" y="80" width="14" height="10" rx="2" fill="#7c2d12"/>
+            <rect x="54" y="80" width="14" height="10" rx="2" fill="#7c2d12"/>
+          </svg>
+        `
+      },
+      {
+        id: '3',
+        name: 'Monstruo 3',
+        bg: 'from-emerald-900/60 to-green-950/80 border-emerald-400',
+        badge: 'emerald',
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Lime Green Monster Three with 3 teeth -->
+            <path d="M32 20 H66 V36 H50 V44 H66 V74 H32 V62 H52 V54 H38 V42 H52 V30 H32 Z" fill="#4ade80" stroke="#15803d" stroke-width="2"/>
+            <!-- Eyes -->
+            <circle cx="42" cy="27" r="5" fill="#ffffff" stroke="#0f172a" stroke-width="1.2"/>
+            <circle cx="43" cy="27" r="2.5" fill="#0f172a"/>
+            <circle cx="58" cy="27" r="5" fill="#ffffff" stroke="#0f172a" stroke-width="1.2"/>
+            <circle cx="59" cy="27" r="2.5" fill="#0f172a"/>
+            <!-- Monster Teeth -->
+            <polygon points="40,46 44,52 48,46" fill="#ffffff" />
+            <polygon points="50,46 54,52 58,46" fill="#ffffff" />
+            <!-- Shoes -->
+            <rect x="32" y="78" width="14" height="10" rx="3" fill="#166534" />
+            <rect x="52" y="78" width="14" height="10" rx="3" fill="#166534" />
+          </svg>
+        `
+      },
+      {
+        id: '4',
+        name: 'Monstruo 4',
+        bg: 'from-yellow-900/60 to-amber-950/80 border-yellow-400',
+        badge: 'yellow',
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Yellow Lightning Four -->
+            <path d="M56 18 H68 V55 H78 V67 H68 V85 H54 V67 H26 V52 L56 18 Z M43 55 H54 V34 L43 55 Z" fill="#facc15" stroke="#a16207" stroke-width="2"/>
+            <!-- Angry cute eyebrow & Eye -->
+            <rect x="42" y="24" width="16" height="4" rx="2" fill="#854d0e" />
+            <circle cx="49" cy="32" r="6" fill="#ffffff" stroke="#0f172a" stroke-width="1.2"/>
+            <circle cx="50" cy="32" r="3" fill="#0f172a" />
+            <!-- Hands -->
+            <circle cx="23" cy="58" r="5" fill="#fef08a" stroke="#ca8a04" stroke-width="1"/>
+            <circle cx="80" cy="62" r="5" fill="#fef08a" stroke="#ca8a04" stroke-width="1"/>
+          </svg>
+        `
+      },
+      {
+        id: '5',
+        name: 'Monstruo 5',
+        bg: 'from-purple-900/60 to-violet-950/80 border-purple-400',
+        badge: 'purple',
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Purple Heavy Voxel Five -->
+            <path d="M34 20 H68 V32 H46 V44 C52 44 68 46 68 62 C68 76 52 80 34 80 C26 80 28 72 28 72 H36 C44 72 54 70 54 62 C54 54 42 54 34 54 Z" fill="#c084fc" stroke="#7e22ce" stroke-width="2"/>
+            <!-- Big Cyclops Eye with Eyelashes -->
+            <circle cx="54" cy="27" r="7.5" fill="#ffffff" stroke="#3b0764" stroke-width="1.5"/>
+            <circle cx="54" cy="27" r="4" fill="#581c87"/>
+            <circle cx="56" cy="25" r="1.3" fill="#ffffff"/>
+            <!-- Stud Details -->
+            <rect x="36" y="22" width="4" height="4" fill="#e9d5ff" />
+            <rect x="46" y="60" width="5" height="5" fill="#e9d5ff" />
+          </svg>
+        `
+      },
+      {
+        id: '8',
+        name: 'Monstruo 8',
+        bg: 'from-pink-900/60 to-fuchsia-950/80 border-pink-400',
+        badge: 'pink',
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Double Donut Pink 8 with Glasses -->
+            <circle cx="50" cy="35" r="20" fill="#f472b6" stroke="#9d174d" stroke-width="2"/>
+            <circle cx="50" cy="65" r="23" fill="#f472b6" stroke="#9d174d" stroke-width="2"/>
+            <circle cx="50" cy="35" r="9" fill="#0f172a"/>
+            <circle cx="50" cy="65" r="11" fill="#0f172a"/>
+            <!-- Big Cool Glasses -->
+            <rect x="32" y="28" width="15" height="13" rx="3" fill="#38bdf8" opacity="0.85" stroke="#ffffff" stroke-width="1.5"/>
+            <rect x="53" y="28" width="15" height="13" rx="3" fill="#38bdf8" opacity="0.85" stroke="#ffffff" stroke-width="1.5"/>
+            <line x1="47" y1="34" x2="53" y2="34" stroke="#ffffff" stroke-width="2" />
+            <!-- Cute Smile in bottom hole -->
+            <path d="M44 65 Q50 72 56 65" stroke="#fda4af" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </svg>
+        `
+      },
+      {
+        id: '9',
+        name: 'Monstruo 9',
+        bg: 'from-teal-900/60 to-cyan-950/80 border-teal-400',
+        badge: 'teal',
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Teal Inverted Trickster 9 -->
+            <circle cx="50" cy="36" r="22" fill="#2dd4bf" stroke="#0f766e" stroke-width="2"/>
+            <circle cx="50" cy="36" r="10" fill="#0f172a"/>
+            <path d="M68 36 V62 C68 76 52 82 34 80 V69 C48 71 56 67 56 60 V36 Z" fill="#2dd4bf" stroke="#0f766e" stroke-width="2"/>
+            <!-- Mischievous Eyes -->
+            <circle cx="43" cy="31" r="5" fill="#ffffff" stroke="#134e4a" stroke-width="1.2"/>
+            <circle cx="44" cy="30" r="2.5" fill="#042f2e"/>
+            <circle cx="57" cy="31" r="5" fill="#ffffff" stroke="#134e4a" stroke-width="1.2"/>
+            <circle cx="58" cy="30" r="2.5" fill="#042f2e"/>
+            <!-- Tongue -->
+            <path d="M48 40 Q50 48 54 44" stroke="#f43f5e" stroke-width="3" fill="none" stroke-linecap="round"/>
+          </svg>
+        `
+      },
+      {
+        id: '0',
+        name: 'Monstruo 0',
+        bg: 'from-indigo-900/60 to-slate-950/80 border-indigo-400',
+        badge: 'indigo',
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Cosmic Void Zero Monster -->
+            <ellipse cx="50" cy="50" rx="26" ry="34" fill="#6366f1" stroke="#3730a3" stroke-width="2.5"/>
+            <ellipse cx="50" cy="50" rx="14" ry="19" fill="#0f172a"/>
+            <!-- Swirl vortex eye inside -->
+            <circle cx="50" cy="50" r="8" fill="#a5b4fc" />
+            <circle cx="50" cy="50" r="4.5" fill="#1e1b4b" />
+            <circle cx="52" cy="48" r="1.5" fill="#ffffff" />
+            <!-- Little robot antenna -->
+            <line x1="50" y1="16" x2="50" y2="7" stroke="#818cf8" stroke-width="2.5"/>
+            <circle cx="50" cy="6" r="4" fill="#e0e7ff"/>
+          </svg>
+        `
+      },
+      {
+        id: '99',
+        name: 'Monstruo Dorado',
+        bg: 'from-amber-800/60 to-yellow-950/80 border-yellow-300',
+        badge: 'gold',
+        svg: `
+          <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-md">
+            <!-- Golden Crown Pixel Boss -->
+            <polygon points="25,25 35,38 50,18 65,38 75,25 75,44 25,44" fill="#fbbf24" stroke="#b45309" stroke-width="1.5"/>
+            <rect x="25" y="44" width="50" height="34" rx="4" fill="#f59e0b" stroke="#92400e" stroke-width="2"/>
+            <!-- Diamonds on Crown -->
+            <circle cx="50" cy="26" r="2.5" fill="#ef4444" />
+            <circle cx="30" cy="30" r="2" fill="#3b82f6" />
+            <circle cx="70" cy="30" r="2" fill="#10b981" />
+            <!-- Big Cool Eyes -->
+            <circle cx="40" cy="58" r="6" fill="#ffffff" stroke="#451a03" stroke-width="1.2"/>
+            <circle cx="41" cy="58" r="3" fill="#000000"/>
+            <circle cx="60" cy="58" r="6" fill="#ffffff" stroke="#451a03" stroke-width="1.2"/>
+            <circle cx="61" cy="58" r="3" fill="#000000"/>
+            <path d="M43 70 Q50 75 57 70" stroke="#78350f" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </svg>
+        `
+      }
+    ];
+
+    const CONFIG = {
+      easy: { pairs: 6, cols: 'grid-cols-3 sm:grid-cols-4', cardAspect: 'aspect-[4/5]' },
+      medium: { pairs: 8, cols: 'grid-cols-4', cardAspect: 'aspect-[4/5]' },
+      hard: { pairs: 10, cols: 'grid-cols-4 sm:grid-cols-5', cardAspect: 'aspect-[4/5]' }
+    };
+
+    let currentDifficulty = 'medium';
+    let cards = [];
+    let flippedCards = [];
+    let matchedPairsCount = 0;
+    let moves = 0;
+    let combo = 0;
+    let maxCombo = 0;
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let isLocked = false;
+
+    // DOM Elements
+    const gridEl = document.getElementById('gameGrid');
+    const movesEl = document.getElementById('movesDisplay');
+    const pairsEl = document.getElementById('pairsDisplay');
+    const timerEl = document.getElementById('timerDisplay');
+    const comboEl = document.getElementById('comboDisplay');
+    const diffSelect = document.getElementById('diffSelect');
+    const restartBtn = document.getElementById('restartBtn');
+    const soundBtn = document.getElementById('soundBtn');
+    const soundIconOn = document.getElementById('soundIconOn');
+    const soundIconOff = document.getElementById('soundIconOff');
+    const winModal = document.getElementById('winModal');
+    const modalHeroSvg = document.getElementById('modalHeroSvg');
+    const modalPlayAgainBtn = document.getElementById('modalPlayAgainBtn');
+
+    // Display Hero in modal
+    modalHeroSvg.innerHTML = CHARACTERS.find(c => c.id === '67').svg;
+
+    function setupGame() {
+      // Clear timers and resets
+      clearInterval(timerInterval);
+      timerInterval = null;
+      secondsElapsed = 0;
+      moves = 0;
+      combo = 0;
+      maxCombo = 0;
+      matchedPairsCount = 0;
+      flippedCards = [];
+      isLocked = false;
+
+      // Update counters display
+      movesEl.textContent = '0';
+      timerEl.textContent = '00:00';
+      comboEl.textContent = 'x0';
+      comboEl.className = 'font-pixel text-base sm:text-xl text-pink-400';
+
+      const config = CONFIG[currentDifficulty];
+      pairsEl.textContent = `0 / ${config.pairs}`;
+
+      // Set grid classes dynamically
+      gridEl.className = `grid gap-2 sm:gap-3.5 w-full max-w-3xl transition-all duration-300 ${config.cols}`;
+
+      // Pick characters (Always ensure "67" is included as the star)
+      const starChar = CHARACTERS.find(c => c.id === '67');
+      const otherChars = CHARACTERS.filter(c => c.id !== '67');
+      
+      // Shuffle other characters and pick needed amount
+      const shuffledOthers = [...otherChars].sort(() => Math.random() - 0.5);
+      const chosenChars = [starChar, ...shuffledOthers.slice(0, config.pairs - 1)];
+
+      // Create pair array
+      cards = [];
+      chosenChars.forEach(char => {
+        cards.push({ ...char, uid: Math.random() });
+        cards.push({ ...char, uid: Math.random() });
+      });
+
+      // Fisher-Yates Shuffle
+      for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+
+      gridEl.innerHTML = '';
+      cards.forEach((card, index) => {
+        const cardBtn = document.createElement('div');
+        cardBtn.className = `perspective-1000 ${config.cardAspect} cursor-pointer group`;
+        cardBtn.dataset.index = index;
+        cardBtn.dataset.id = card.id;
+
+        cardBtn.innerHTML = `
+          <div class="card-inner w-full h-full shadow-md rounded-2xl">
+            <!-- Card Back (Unflipped) -->
+            <div class="card-face card-back bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700/80 group-hover:border-cyan-400/70 transition-colors flex flex-col items-center justify-center p-2">
+              <div class="w-10 h-10 sm:w-14 sm:h-14 rounded-xl bg-slate-950/70 border border-slate-700/60 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+                <span class="font-pixel text-cyan-400 text-xs sm:text-base opacity-75 group-hover:opacity-100">?</span>
+              </div>
+              <span class="text-[9px] sm:text-[11px] font-pixel text-slate-500 mt-2 tracking-wider">BLOCK</span>
+            </div>
+
+            <!-- Card Front (Revealed Monster) -->
+            <div class="card-face card-front bg-gradient-to-br ${card.bg} border-2 rounded-2xl flex flex-col items-center justify-between p-2 sm:p-3 shadow-xl">
+              <div class="w-full flex justify-between items-center px-1">
+                <span class="font-pixel text-[8px] sm:text-[10px] text-cyan-200">#${card.id}</span>
+                <span class="text-[10px] opacity-70">👾</span>
+              </div>
+              <div class="w-14 h-14 sm:w-20 sm:h-20 my-auto flex items-center justify-center">
+                ${card.svg}
+              </div>
+              <span class="text-[9px] sm:text-xs font-bold text-white tracking-wide truncate max-w-full">
+                ${card.name}
+              </span>
+            </div>
+          </div>
+        `;
+
+        cardBtn.addEventListener('click', () => handleCardClick(cardBtn, index));
+        gridEl.appendChild(cardBtn);
+      });
+
+      // Close modal if open
+      winModal.classList.add('opacity-0', 'pointer-events-none');
+      winModal.querySelector('div').classList.add('scale-95');
+    }
+
+    function startTimerIfNeeded() {
+      if (!timerInterval) {
+        timerInterval = setInterval(() => {
+          secondsElapsed++;
+          const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+          const secs = String(secondsElapsed % 60).padStart(2, '0');
+          timerEl.textContent = `${mins}:${secs}`;
+        }, 1000);
+      }
+    }
+
+    function handleCardClick(cardEl, index) {
+      if (isLocked) return;
+      if (cardEl.classList.contains('card-flipped') || cardEl.classList.contains('card-matched')) return;
+
+      startTimerIfNeeded();
+      sound.playFlip();
+
+      // Flip card visually
+      cardEl.classList.add('card-flipped');
+      flippedCards.push({ el: cardEl, data: cards[index] });
+
+      if (flippedCards.length === 2) {
+        moves++;
+        movesEl.textContent = moves;
+        checkMatch();
+      }
+    }
+
+    function checkMatch() {
+      isLocked = true;
+      const [first, second] = flippedCards;
+
+      if (first.data.id === second.data.id) {
+        // MATCH!
+        combo++;
+        if (combo > maxCombo) maxCombo = combo;
+        matchedPairsCount++;
+
+        sound.playMatch(combo);
+
+        // Update Combo UI
+        comboEl.textContent = `x${combo}`;
+        if (combo > 1) {
+          comboEl.className = 'font-pixel text-base sm:text-xl text-yellow-300 animate-pulse';
+        }
+
+        // Add matched classes
+        setTimeout(() => {
+          first.el.classList.add('card-matched');
+          second.el.classList.add('card-matched');
+          flippedCards = [];
+          isLocked = false;
+
+          const config = CONFIG[currentDifficulty];
+          pairsEl.textContent = `${matchedPairsCount} / ${config.pairs}`;
+
+          // Check Win Condition
+          if (matchedPairsCount === config.pairs) {
+            handleVictory();
+          }
+        }, 320);
+
+      } else {
+        // MISMATCH
+        combo = 0;
+        comboEl.textContent = 'x0';
+        comboEl.className = 'font-pixel text-base sm:text-xl text-pink-400';
+        sound.playMismatch();
+
+        setTimeout(() => {
+          first.el.classList.remove('card-flipped');
+          second.el.classList.remove('card-flipped');
+          flippedCards = [];
+          isLocked = false;
+        }, 900);
+      }
+    }
+
+    const canvas = document.getElementById('confettiCanvas');
+    const ctx = canvas.getContext('2d');
+    let confettiParticles = [];
+    let confettiAnimationId = null;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function fireConfetti() {
+      confettiParticles = [];
+      const colors = ['#38bdf8', '#fbbf24', '#f43f5e', '#a855f7', '#34d399', '#ffffff'];
+      for (let i = 0; i < 150; i++) {
+        confettiParticles.push({
+          x: canvas.width / 2 + (Math.random() * 200 - 100),
+          y: canvas.height / 2 + (Math.random() * 100 - 50),
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          vx: (Math.random() - 0.5) * 14,
+          vy: (Math.random() - 1) * 14 - 3,
+          rotation: Math.random() * 360,
+          vRot: (Math.random() - 0.5) * 8,
+          gravity: 0.35,
+          alpha: 1
+        });
+      }
+
+      function updateConfetti() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = false;
+        confettiParticles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += p.gravity;
+          p.rotation += p.vRot;
+          p.alpha -= 0.007;
+
+          if (p.alpha > 0) {
+            alive = true;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.globalAlpha = Math.max(p.alpha, 0);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+            ctx.restore();
+          }
+        });
+
+        if (alive) {
+          confettiAnimationId = requestAnimationFrame(updateConfetti);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+
+      cancelAnimationFrame(confettiAnimationId);
+      updateConfetti();
+    }
+
+    function handleVictory() {
+      clearInterval(timerInterval);
+      sound.playVictory();
+      fireConfetti();
+
+      // Calculate Stars based on moves vs ideal pairs
+      const config = CONFIG[currentDifficulty];
+      const idealMoves = config.pairs * 1.5;
+      let stars = '⭐⭐⭐';
+      if (moves > idealMoves * 2) {
+        stars = '⭐';
+      } else if (moves > idealMoves * 1.35) {
+        stars = '⭐⭐';
+      }
+
+      // Update Modal DOM
+      document.getElementById('starContainer').innerHTML = stars.split('').map(s => `<span>${s}</span>`).join('');
+      document.getElementById('winTime').textContent = timerEl.textContent;
+      document.getElementById('winMoves').textContent = moves;
+      document.getElementById('winCombo').textContent = `x${maxCombo}`;
+      document.getElementById('winDiff').textContent = diffSelect.options[diffSelect.selectedIndex].text;
+
+      // Reveal modal
+      setTimeout(() => {
+        winModal.classList.remove('opacity-0', 'pointer-events-none');
+        winModal.querySelector('div').classList.remove('scale-95');
+      }, 500);
+    }
+
+    diffSelect.addEventListener('change', (e) => {
+      currentDifficulty = e.target.value;
+      setupGame();
+    });
+
+    restartBtn.addEventListener('click', () => {
+      setupGame();
+    });
+
+    modalPlayAgainBtn.addEventListener('click', () => {
+      setupGame();
+    });
+
+    // Sound toggle listener
+    soundBtn.addEventListener('click', () => {
+      sound.muted = !sound.muted;
+      if (sound.muted) {
+        soundIconOn.classList.add('hidden');
+        soundIconOff.classList.remove('hidden');
+      } else {
+        soundIconOn.classList.remove('hidden');
+        soundIconOff.classList.add('hidden');
+        sound.playFlip();
+      }
+    });
+
+    // Window load bootstrap
+    window.onload = () => {
+      setupGame();
+    };
+  </script>
+</body>
+</html>
