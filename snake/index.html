@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cobra Come Fruta</title>
+    <!-- Tailwind CSS for modern styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Fredoka', sans-serif;
+            touch-action: none;
+        }
+        .game-canvas-container {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-emerald-900 via-stone-900 to-green-950 min-h-screen text-white flex flex-col items-center justify-between p-4 select-none overflow-hidden">
+
+    <header class="w-full max-w-md flex justify-between items-center bg-stone-800/80 backdrop-blur-md px-5 py-3 rounded-2xl border border-stone-700 shadow-lg">
+        <div class="flex items-center space-x-2">
+            <span class="text-2xl">🐍</span>
+            <h1 class="text-xl font-bold bg-gradient-to-r from-emerald-400 to-green-300 bg-clip-text text-transparent">Cobra Frutal</h1>
+        </div>
+        <div class="flex space-x-4">
+            <div class="flex flex-col items-center">
+                <span class="text-xs text-stone-400 uppercase tracking-wider">Puntuación</span>
+                <span id="score" class="text-xl font-bold text-emerald-400">0</span>
+            </div>
+            <div class="flex flex-col items-center border-l border-stone-700 pl-4">
+                <span class="text-xs text-stone-400 uppercase tracking-wider">Récord</span>
+                <span id="highscore" class="text-xl font-bold text-amber-400">0</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative flex flex-col items-center justify-center my-auto w-full max-w-md">
+        <div class="relative game-canvas-container rounded-3xl overflow-hidden border-4 border-stone-700 bg-stone-900/90">
+            <canvas id="gameCanvas" width="360" height="360" class="block w-full max-w-[360px] aspect-square"></canvas>
+
+            <!-- Start / Game Over Overlay -->
+            <div id="overlay" class="absolute inset-0 bg-stone-950/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center transition-all duration-300">
+                <div id="overlayIcon" class="text-6xl mb-3 animate-bounce">🐍🍎</div>
+                <h2 id="overlayTitle" class="text-2xl font-bold mb-2 text-emerald-400">¡Cobra Come Fruta!</h2>
+                <p id="overlayText" class="text-stone-300 text-sm mb-6 max-w-xs">¡Come manzanas, peras y bananas para crecer! Evita chocar contra las paredes o tu propio cuerpo.</p>
+                <button id="startBtn" onclick="startGame()" class="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition active:scale-95 flex items-center space-x-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Jugar Ahora</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Legend / Fruit info banner -->
+        <div class="flex justify-around w-full mt-4 bg-stone-800/40 backdrop-blur-sm p-2 rounded-xl border border-stone-700/50 text-xs">
+            <div class="flex items-center space-x-1">
+                <span class="text-base">🍎</span>
+                <span class="text-stone-300">+10 pts (Manzana)</span>
+            </div>
+            <div class="flex items-center space-x-1">
+                <span class="text-base">🍐</span>
+                <span class="text-stone-300">+15 pts (Pera)</span>
+            </div>
+            <div class="flex items-center space-x-1">
+                <span class="text-base">🍌</span>
+                <span class="text-stone-300">+20 pts (Banana)</span>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full max-w-md flex flex-col items-center pb-2">
+        <div class="grid grid-cols-3 gap-2 w-48 max-w-full">
+            <div></div>
+            <button onclick="changeDirection('UP')" class="bg-stone-800 hover:bg-stone-700 active:bg-emerald-600 border border-stone-700 text-white p-4 rounded-2xl flex items-center justify-center shadow-md transition">
+                <i class="fa-solid fa-arrow-up text-lg"></i>
+            </button>
+            <div></div>
+            <button onclick="changeDirection('LEFT')" class="bg-stone-800 hover:bg-stone-700 active:bg-emerald-600 border border-stone-700 text-white p-4 rounded-2xl flex items-center justify-center shadow-md transition">
+                <i class="fa-solid fa-arrow-left text-lg"></i>
+            </button>
+            <button onclick="changeDirection('DOWN')" class="bg-stone-800 hover:bg-stone-700 active:bg-emerald-600 border border-stone-700 text-white p-4 rounded-2xl flex items-center justify-center shadow-md transition">
+                <i class="fa-solid fa-arrow-down text-lg"></i>
+            </button>
+            <button onclick="changeDirection('RIGHT')" class="bg-stone-800 hover:bg-stone-700 active:bg-emerald-600 border border-stone-700 text-white p-4 rounded-2xl flex items-center justify-center shadow-md transition">
+                <i class="fa-solid fa-arrow-right text-lg"></i>
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const highscoreEl = document.getElementById('highscore');
+        const overlay = document.getElementById('overlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlayText = document.getElementById('overlayText');
+        const overlayIcon = document.getElementById('overlayIcon');
+        const startBtn = document.getElementById('startBtn');
+
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let snake = [];
+        let food = {};
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let highscore = localStorage.getItem('snake_highscore') || 0;
+        let gameInterval = null;
+        let gameRunning = false;
+        let changingDirection = false;
+
+        highscoreEl.innerText = highscore;
+
+        // Sound setup using Tone.js
+        let synth = null;
+        function initAudio() {
+            if (!synth) {
+                synth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+                }).toDestination();
+            }
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                Tone.start();
+                if (type === 'eat') {
+                    synth.triggerAttackRelease('C6', '16n');
+                } else if (type === 'gameover') {
+                    synth.triggerAttackRelease('C3', '4n');
+                } else if (type === 'move') {
+                    // subtle click if desired
+                }
+            } catch (e) {
+                console.log("Audio not allowed yet");
+            }
+        }
+
+        const fruits = [
+            { type: 'apple', emoji: '🍎', points: 10, color: '#ef4444' },
+            { type: 'pear', emoji: '🍐', points: 15, color: '#84cc16' },
+            { type: 'banana', emoji: '🍌', points: 20, color: '#eab308' }
+        ];
+
+        function resetGame() {
+            snake = [
+                { x: 8, y: 10 },
+                { x: 7, y: 10 },
+                { x: 6, y: 10 }
+            ];
+            dx = 1;
+            dy = 0;
+            score = 0;
+            scoreEl.innerText = score;
+            spawnFood();
+        }
+
+        function spawnFood() {
+            let valid = false;
+            while (!valid) {
+                const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
+                const x = Math.floor(Math.random() * tileCount);
+                const y = Math.floor(Math.random() * tileCount);
+                
+                valid = true;
+                for (let part of snake) {
+                    if (part.x === x && part.y === y) {
+                        valid = false;
+                        break;
+                    }
+                }
+                if (valid) {
+                    food = { x, y, ...randomFruit };
+                }
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            overlay.classList.add('opacity-0', 'pointer-events-none');
+            resetGame();
+            gameRunning = true;
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, 110);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            clearInterval(gameInterval);
+            playSound('gameover');
+
+            if (score > highscore) {
+                highscore = score;
+                localStorage.setItem('snake_highscore', highscore);
+                highscoreEl.innerText = highscore;
+            }
+
+            overlayIcon.innerText = '💀';
+            overlayTitle.innerText = '¡Game Over!';
+            overlayText.innerHTML = `¡Te has estrellado!<br>Frutas comidas. Puntuación final: <span class="text-emerald-400 font-bold">${score}</span>`;
+            startBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i><span>Jugar de Nuevo</span>';
+            overlay.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function changeDirection(newDir) {
+            if (changingDirection || !gameRunning) return;
+            
+            if (newDir === 'UP' && dy === 0) {
+                dx = 0; dy = -1; changingDirection = true;
+            } else if (newDir === 'DOWN' && dy === 0) {
+                dx = 0; dy = 1; changingDirection = true;
+            } else if (newDir === 'LEFT' && dx === 0) {
+                dx = -1; dy = 0; changingDirection = true;
+            } else if (newDir === 'RIGHT' && dx === 0) {
+                dx = 1; dy = 0; changingDirection = true;
+            }
+        }
+
+        // Keyboard inputs
+        window.addEventListener('keydown', e => {
+            if (['ArrowUp', 'KeyW'].includes(e.code)) { changeDirection('UP'); e.preventDefault(); }
+            if (['ArrowDown', 'KeyS'].includes(e.code)) { changeDirection('DOWN'); e.preventDefault(); }
+            if (['ArrowLeft', 'KeyA'].includes(e.code)) { changeDirection('LEFT'); e.preventDefault(); }
+            if (['ArrowRight', 'KeyD'].includes(e.code)) { changeDirection('RIGHT'); e.preventDefault(); }
+        });
+
+        // Touch swipe support on canvas
+        let touchStartX = 0;
+        let touchStartY = 0;
+        canvas.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', e => {
+            if (!gameRunning) return;
+            let touchEndX = e.changedTouches[0].clientX;
+            let touchEndY = e.changedTouches[0].clientY;
+            
+            let diffX = touchEndX - touchStartX;
+            let diffY = touchEndY - touchStartY;
+
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                if (diffX > 30) changeDirection('RIGHT');
+                else if (diffX < -30) changeDirection('LEFT');
+            } else {
+                if (diffY > 30) changeDirection('DOWN');
+                else if (diffY < -30) changeDirection('UP');
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        function gameLoop() {
+            changingDirection = false;
+            
+            // Move snake head
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // Wall collision check
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                gameOver();
+                return;
+            }
+
+            // Self collision check
+            for (let part of snake) {
+                if (head.x === part.x && head.y === part.y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            snake.unshift(head);
+
+            // Eat fruit check
+            if (head.x === food.x && head.y === food.y) {
+                score += food.points;
+                scoreEl.innerText = score;
+                playSound('eat');
+                spawnFood();
+            } else {
+                snake.pop();
+            }
+
+            draw();
+        }
+
+        function draw() {
+            // Background grid
+            ctx.fillStyle = '#1c1917';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Subtle grid pattern
+            ctx.strokeStyle = '#292524';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+
+            // Draw Food with Emoji
+            ctx.font = `${gridSize - 2}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(
+                food.emoji, 
+                food.x * gridSize + gridSize / 2, 
+                food.y * gridSize + gridSize / 2 + 1
+            );
+
+            // Draw Snake
+            snake.forEach((part, index) => {
+                const isHead = index === 0;
+                ctx.fillStyle = isHead ? '#10b981' : '#059669';
+                
+                // Rounded snake segments
+                const x = part.x * gridSize + 2;
+                const y = part.y * gridSize + 2;
+                const size = gridSize - 4;
+                
+                ctx.beginPath();
+                ctx.roundRect(x, y, size, size, 6);
+                ctx.fill();
+
+                if (isHead) {
+                    // Draw little eyes on head
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    let eye1x = x + 5, eye1y = y + 5;
+                    let eye2x = x + 11, eye2y = y + 5;
+                    if (dx === 1) { eye1x = x + 11; eye1y = y + 5; eye2x = x + 11; eye2y = y + 11; }
+                    else if (dx === -1) { eye1x = x + 3; eye1y = y + 5; eye2x = x + 3; eye2y = y + 11; }
+                    else if (dy === 1) { eye1x = x + 5; eye1y = y + 11; eye2x = x + 11; eye2y = y + 11; }
+                    
+                    ctx.arc(eye1x, eye1y, 2, 0, Math.PI * 2);
+                    ctx.arc(eye2x, eye2y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Initial draw
+        resetGame();
+        draw();
+    </script>
+</body>
+</html>
