@@ -1,0 +1,1144 @@
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tamagotchi Virtual Pet</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Press Start 2P & Fredoka -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Fredoka', sans-serif;
+      background: radial-gradient(circle at 50% 20%, #2a2b38 0%, #15161e 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .pixel-font {
+      font-family: 'Press Start 2P', monospace;
+      image-rendering: pixelated;
+    }
+
+    .lcd-screen-container {
+      background-color: #8fa382;
+      box-shadow: inset 3px 3px 10px rgba(0, 0, 0, 0.45), inset -2px -2px 6px rgba(255, 255, 255, 0.2);
+      border: 3px solid #576550;
+      position: relative;
+    }
+
+    /* Scanlines and LCD pixel matrix effect */
+    .lcd-screen-container::before {
+      content: " ";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.12) 50%), 
+                  linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 3px 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Plastic Egg Shell Design */
+    .egg-shell {
+      border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%;
+      box-shadow: 
+        0 20px 45px rgba(0,0,0,0.6),
+        inset 0 10px 20px rgba(255,255,255,0.45),
+        inset 0 -15px 25px rgba(0,0,0,0.35);
+      transition: background 0.4s ease, transform 0.2s ease;
+    }
+
+    /* 3D Hardware Rubber Buttons */
+    .retro-btn {
+      border-radius: 50%;
+      box-shadow: 0 6px 0 #555, 0 8px 12px rgba(0,0,0,0.4);
+      transition: all 0.08s ease;
+    }
+
+    .retro-btn:active, .retro-btn.pressed {
+      transform: translateY(5px);
+      box-shadow: 0 1px 0 #555, 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    /* Screen icons highlight */
+    .lcd-icon {
+      filter: grayscale(100%) brightness(0.3);
+      opacity: 0.35;
+      transition: all 0.15s ease;
+    }
+
+    .lcd-icon.active {
+      filter: none;
+      opacity: 1;
+      transform: scale(1.15);
+      animation: pulse-icon 0.8s infinite alternate ease-in-out;
+    }
+
+    @keyframes pulse-icon {
+      from { transform: scale(1.05); filter: drop-shadow(0 0 2px #263321); }
+      to { transform: scale(1.22); filter: drop-shadow(0 0 4px #1a2216); }
+    }
+
+    /* Canvas styling */
+    canvas {
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-between p-3 sm:p-6 text-slate-100 min-h-screen">
+
+  <header class="w-full max-w-md flex items-center justify-between py-2 px-3 bg-slate-800/80 backdrop-blur rounded-2xl border border-slate-700/60 shadow-lg">
+    <div class="flex items-center space-x-2">
+      <span class="text-xl">🥚</span>
+      <div>
+        <h1 class="text-xs sm:text-sm font-bold tracking-wider text-amber-400">TAMA-GEN 1996</h1>
+        <p class="text-[10px] text-slate-400">Mascota Virtual Clásica</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center space-x-1.5 sm:space-x-2">
+      <!-- Mute sound toggle -->
+      <button id="soundToggleBtn" title="Sonido On/Off" class="p-2 bg-slate-700 hover:bg-slate-600 active:scale-95 rounded-xl text-xs transition">
+        <span id="soundIcon">🔊</span>
+      </button>
+
+      <!-- Color shell chooser -->
+      <button id="shellColorBtn" title="Cambiar color de carcasa" class="p-2 bg-slate-700 hover:bg-slate-600 active:scale-95 rounded-xl text-xs transition">
+        🎨
+      </button>
+
+      <!-- Reset / Restart modal trigger -->
+      <button id="resetModalBtn" title="Reiniciar huevo" class="p-2 bg-rose-900/60 hover:bg-rose-800 text-rose-300 active:scale-95 rounded-xl text-xs transition">
+        🔄
+      </button>
+
+      <!-- Help / Instructions -->
+      <button id="helpModalBtn" title="Instrucciones" class="p-2 bg-slate-700 hover:bg-slate-600 active:scale-95 rounded-xl text-xs transition">
+        ❓
+      </button>
+    </div>
+  </header>
+
+  <main class="relative my-auto flex flex-col items-center justify-center p-2">
+    <!-- Keychain loop on top of egg -->
+    <div class="flex flex-col items-center -mb-3 z-0">
+      <div class="w-7 h-7 rounded-full border-4 border-slate-400/80 bg-transparent shadow-inner"></div>
+      <div class="w-3 h-4 bg-slate-400 -mt-1 rounded-sm shadow"></div>
+    </div>
+
+    <!-- Main Egg Body Shell -->
+    <div id="eggShell" class="egg-shell relative w-[310px] sm:w-[360px] h-[410px] sm:h-[465px] bg-gradient-to-b from-pink-400 via-rose-400 to-pink-500 p-5 sm:p-7 flex flex-col items-center justify-between border-4 border-pink-300/60 z-10">
+      
+      <!-- Egg decorative pattern lines & brand banner -->
+      <div class="w-full flex items-center justify-between px-6 pt-1">
+        <span class="text-[10px] sm:text-xs font-black tracking-widest text-pink-900/70">★ CONNECTION ★</span>
+        <span class="text-[10px] sm:text-xs font-black tracking-widest text-pink-900/70">BANDAI-GEN</span>
+      </div>
+
+      <div class="w-full bg-slate-200/90 rounded-[2rem] p-3 sm:p-4 shadow-xl border-4 border-pink-300/80 flex flex-col items-center">
+        
+        <!-- Screen top brand title -->
+        <div class="text-[9px] font-bold text-slate-600 mb-1 tracking-widest uppercase">
+          TAMAGOTCHI • LCD MATRIX
+        </div>
+
+        <!-- Inner LCD Screen Matrix Box -->
+        <div class="lcd-screen-container w-full h-[180px] sm:h-[205px] rounded-xl flex flex-col justify-between p-2 overflow-hidden">
+          
+          <!-- Top Row Icons (Feed, Lamp, Game, Medicine) -->
+          <div class="w-full flex justify-around items-center px-1 py-0.5 border-b border-[#7d9171] z-20">
+            <!-- 0: Feed -->
+            <button class="lcd-icon text-sm sm:text-base cursor-pointer" data-action="feed" title="Alimentar">🍔</button>
+            <!-- 1: Light / Sleep -->
+            <button class="lcd-icon text-sm sm:text-base cursor-pointer" data-action="light" title="Luz / Dormir">💡</button>
+            <!-- 2: Game -->
+            <button class="lcd-icon text-sm sm:text-base cursor-pointer" data-action="game" title="Jugar">⚽</button>
+            <!-- 3: Medicine -->
+            <button class="lcd-icon text-sm sm:text-base cursor-pointer" data-action="medicine" title="Medicina">💉</button>
+          </div>
+
+          <!-- Middle Pixel Screen Viewport -->
+          <div class="relative w-full flex-1 flex items-center justify-center overflow-hidden my-1">
+            <canvas id="gameCanvas" width="128" height="88" class="w-full h-full object-contain"></canvas>
+            
+            <!-- Quick Alert Notification Badge on LCD -->
+            <div id="lcdToast" class="absolute bottom-1 bg-[#232d20] text-[#8fa382] pixel-font text-[8px] sm:text-[9px] px-2 py-1 rounded hidden z-30 transition">
+              ¡HOLA!
+            </div>
+          </div>
+
+          <!-- Bottom Row Icons (Clean, Stats, Discipline, Attention) -->
+          <div class="w-full flex justify-around items-center px-1 py-0.5 border-t border-[#7d9171] z-20">
+            <!-- 4: Bath / Clean -->
+            <button class="lcd-icon text-sm sm:text-base cursor-pointer" data-action="bath" title="Limpiar Baño">🚿</button>
+            <!-- 5: Stats / Status -->
+            <button class="lcd-icon text-sm sm:text-base cursor-pointer" data-action="stats" title="Ver Estados">📊</button>
+            <!-- 6: Discipline / Praise -->
+            <button class="lcd-icon text-sm sm:text-base cursor-pointer" data-action="discipline" title="Educar">📢</button>
+            <!-- 7: Attention alert indicator (not directly selectable, blinks when pet cries) -->
+            <div id="attentionIcon" class="lcd-icon text-sm sm:text-base" title="Llamada de atención">⚠️</div>
+          </div>
+        </div>
+
+        <!-- Sub-label below LCD frame -->
+        <div class="w-full flex justify-between items-center px-2 mt-1">
+          <span class="text-[8px] font-semibold text-slate-500">DIGITAL MONSTER</span>
+          <span id="clockIndicator" class="text-[9px] font-mono text-slate-700 font-bold">12:00</span>
+        </div>
+      </div>
+
+      <div class="w-full px-4 pb-2 pt-2">
+        <div class="flex justify-between items-center px-4 sm:px-6">
+          
+          <!-- Button A: Select -->
+          <div class="flex flex-col items-center">
+            <button id="btnA" class="retro-btn w-12 h-12 sm:w-14 sm:h-14 bg-yellow-300 active:bg-yellow-400 border-2 border-yellow-200 flex items-center justify-center font-bold text-yellow-900 text-lg cursor-pointer">
+              A
+            </button>
+            <span class="text-[9px] font-extrabold text-pink-950 mt-1 tracking-wider uppercase">Select</span>
+          </div>
+
+          <!-- Button B: Confirm / Execute -->
+          <div class="flex flex-col items-center -mt-3">
+            <button id="btnB" class="retro-btn w-13 h-13 sm:w-15 sm:h-15 bg-yellow-300 active:bg-yellow-400 border-2 border-yellow-200 flex items-center justify-center font-bold text-yellow-900 text-xl cursor-pointer">
+              B
+            </button>
+            <span class="text-[9px] font-extrabold text-pink-950 mt-1 tracking-wider uppercase">Execute</span>
+          </div>
+
+          <!-- Button C: Cancel / Status -->
+          <div class="flex flex-col items-center">
+            <button id="btnC" class="retro-btn w-12 h-12 sm:w-14 sm:h-14 bg-yellow-300 active:bg-yellow-400 border-2 border-yellow-200 flex items-center justify-center font-bold text-yellow-900 text-lg cursor-pointer">
+              C
+            </button>
+            <span class="text-[9px] font-extrabold text-pink-950 mt-1 tracking-wider uppercase">Cancel</span>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="w-full max-w-md bg-slate-800/90 border border-slate-700/80 rounded-2xl p-3 shadow-xl mt-3 flex flex-col space-y-2">
+    <div class="flex items-center justify-between text-xs text-slate-300">
+      <div class="flex items-center space-x-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="petNameBadge" class="font-bold text-slate-100">Huevo</span>
+      </div>
+      <div class="flex items-center space-x-2 text-[11px] text-slate-400">
+        <span>Edad: <strong id="hudAge" class="text-amber-300">0</strong> d</span>
+        <span>Peso: <strong id="hudWeight" class="text-amber-300">5</strong>g</span>
+        <span>Etapa: <strong id="hudStage" class="text-cyan-300">Bebé</strong></span>
+      </div>
+    </div>
+
+    <!-- Quick action buttons drawer for modern mobile ease -->
+    <div class="grid grid-cols-4 gap-1.5 text-[11px] pt-1">
+      <button onclick="quickAction('feed_meal')" class="bg-slate-700/70 hover:bg-slate-700 active:scale-95 text-slate-200 py-1.5 px-1 rounded-lg text-center transition flex flex-col items-center">
+        <span>🍙 Comida</span>
+      </button>
+      <button onclick="quickAction('feed_snack')" class="bg-slate-700/70 hover:bg-slate-700 active:scale-95 text-slate-200 py-1.5 px-1 rounded-lg text-center transition flex flex-col items-center">
+        <span>🍰 Dulce</span>
+      </button>
+      <button onclick="quickAction('play_game')" class="bg-slate-700/70 hover:bg-slate-700 active:scale-95 text-slate-200 py-1.5 px-1 rounded-lg text-center transition flex flex-col items-center">
+        <span>🎮 Minijuego</span>
+      </button>
+      <button onclick="quickAction('clean_bath')" class="bg-slate-700/70 hover:bg-slate-700 active:scale-95 text-slate-200 py-1.5 px-1 rounded-lg text-center transition flex flex-col items-center">
+        <span>✨ Limpiar</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- Help & Guide Modal -->
+  <div id="helpModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 max-w-sm w-full rounded-2xl p-5 shadow-2xl text-slate-200 space-y-3">
+      <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+        <h3 class="font-bold text-amber-400 flex items-center gap-2">📖 Manual Tamagotchi</h3>
+        <button id="closeHelpBtn" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+      <div class="text-xs space-y-2 text-slate-300 max-h-[60vh] overflow-y-auto pr-1">
+        <p><strong class="text-yellow-300">Botón [A] (Select):</strong> Cambia entre los íconos del menú o tus opciones en minijuegos.</p>
+        <p><strong class="text-yellow-300">Botón [B] (Execute):</strong> Confirma la acción o juega / da cariño.</p>
+        <p><strong class="text-yellow-300">Botón [C] (Cancel):</strong> Cancela la selección o abre directamente el estado de salud.</p>
+        <div class="border-t border-slate-700 pt-2 space-y-1">
+          <p>❤️ <strong>Hambre y Felicidad:</strong> Aliméntalo con Arroz (comida sana) y Dulces (lo hace feliz pero sube de peso).</p>
+          <p>💩 <strong>Higiene:</strong> Si ves popó en la pantalla, límpiala con la regadera antes de que enferme.</p>
+          <p>💤 <strong>Sueño:</strong> Apaga la luz cuando se duerma en la noche para que recupere energía.</p>
+          <p>✨ <strong>Evolución:</strong> Huevo ➔ Bebé (Babytchi) ➔ Niño (Marutchi) ➔ Adulto (Mametchi / Kuchipatchi / Masktchi) según tus cuidados.</p>
+        </div>
+      </div>
+      <button id="okHelpBtn" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-xl text-xs transition">
+        ¡Entendido!
+      </button>
+    </div>
+  </div>
+
+  <!-- Reset / New Egg Modal (Never using alert/confirm) -->
+  <div id="resetModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 border border-rose-800/80 max-w-sm w-full rounded-2xl p-5 shadow-2xl text-slate-200 space-y-3">
+      <h3 class="font-bold text-rose-400 flex items-center gap-2">⚠️ Reiniciar Tamagotchi</h3>
+      <p class="text-xs text-slate-300">¿Deseas reiniciar tu mascota y comenzar desde un nuevo huevo? Todo el progreso actual se reiniciará.</p>
+      <div class="flex space-x-2 pt-2">
+        <button id="cancelResetBtn" class="flex-1 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold rounded-xl text-xs">Cancelar</button>
+        <button id="confirmResetBtn" class="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs">Sí, Nuevo Huevo</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* Retro 8-bit Sound Synthesizer */
+    class RetroSoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTone(freq, type = 'square', duration = 0.08, volume = 0.15) {
+        if (this.muted) return;
+        try {
+          this.init();
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+
+          gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (err) {
+          // AudioContext blocked or unsupported
+        }
+      }
+
+      beepSelect() {
+        this.playTone(880, 'square', 0.06, 0.12);
+      }
+
+      beepConfirm() {
+        this.playTone(987.77, 'square', 0.06, 0.12);
+        setTimeout(() => this.playTone(1318.51, 'square', 0.09, 0.12), 65);
+      }
+
+      beepCancel() {
+        this.playTone(523.25, 'square', 0.08, 0.12);
+      }
+
+      playEat() {
+        this.playTone(659.25, 'square', 0.07, 0.12);
+        setTimeout(() => this.playTone(783.99, 'square', 0.07, 0.12), 110);
+        setTimeout(() => this.playTone(1046.5, 'square', 0.1, 0.12), 220);
+      }
+
+      playHappy() {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((n, idx) => {
+          setTimeout(() => this.playTone(n, 'square', 0.09, 0.13), idx * 90);
+        });
+      }
+
+      playSad() {
+        this.playTone(392.0, 'sawtooth', 0.14, 0.12);
+        setTimeout(() => this.playTone(329.63, 'sawtooth', 0.22, 0.12), 150);
+      }
+
+      playEvolve() {
+        const melody = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+        melody.forEach((n, idx) => {
+          setTimeout(() => this.playTone(n, 'square', 0.1, 0.15), idx * 85);
+        });
+      }
+    }
+
+    const SPRITES = {
+      EGG_1: [
+        "....1111....",
+        "..11....11..",
+        ".1..11....1.",
+        "1..1111....1",
+        "1..........1",
+        "1....11....1",
+        "1...1111...1",
+        ".1........1.",
+        "..11....11..",
+        "....1111...."
+      ],
+      EGG_2: [
+        "....1111....",
+        "..11....11..",
+        ".1....11..1.",
+        "1....1111..1",
+        "1..........1",
+        "1..11......1",
+        "1.1111.....1",
+        ".1........1.",
+        "..11....11..",
+        "....1111...."
+      ],
+      BABY_1: [
+        "...111111...",
+        "..1......1..",
+        ".1.11..11.1.",
+        ".1.11..11.1.",
+        ".1........1.",
+        ".1..1111..1.",
+        "..1......1..",
+        "...111111..."
+      ],
+      BABY_2: [
+        "............",
+        "...111111...",
+        "..1......1..",
+        ".1.11..11.1.",
+        ".1........1.",
+        ".1...11...1.",
+        "..1......1..",
+        "...111111..."
+      ],
+      CHILD_1: [
+        "..11111111..",
+        ".1........1.",
+        "1..11..11..1",
+        "1..11..11..1",
+        "1..........1",
+        "1...1111...1",
+        "1....11....1",
+        ".1........1.",
+        "..11....11..",
+        "..11111111.."
+      ],
+      CHILD_2: [
+        "............",
+        "..11111111..",
+        ".1........1.",
+        "1..11..11..1",
+        "1..........1",
+        "1..111111..1",
+        ".1........1.",
+        "..11111111..",
+        ".11......11.",
+        "............"
+      ],
+      ADULT_1: [
+        ".11......11.",
+        "111111111111",
+        "1..........1",
+        "1.111..111.1",
+        "1.111..111.1",
+        "1..........1",
+        "1...1111...1",
+        ".1........1.",
+        "..11111111..",
+        "..11....11..",
+        ".111....111."
+      ],
+      ADULT_2: [
+        ".11......11.",
+        "111111111111",
+        "1..........1",
+        "1..11..11..1",
+        "1..........1",
+        "1..111111..1",
+        "1...1111...1",
+        ".1........1.",
+        "..11111111..",
+        ".111....111.",
+        "............"
+      ],
+      POOP: [
+        "...11...",
+        "..1..1..",
+        ".111111.",
+        "1......1",
+        "11111111"
+      ],
+      SKULL: [
+        ".111111.",
+        "1......1",
+        "1.11.111",
+        "1......1",
+        ".111111.",
+        "..1.1.1."
+      ],
+      HEART_FULL: [
+        ".11..11.",
+        "11111111",
+        "11111111",
+        ".111111.",
+        "..1111..",
+        "...11..."
+      ],
+      HEART_EMPTY: [
+        ".11..11.",
+        "1..11..1",
+        "1......1",
+        ".1....1.",
+        "..1..1..",
+        "...11..."
+      ]
+    };
+
+    const sound = new RetroSoundEngine();
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const PIXEL_ON = '#1d2719';
+    const PIXEL_FADED = '#7c8f70';
+    const PIXEL_BG = '#8fa382';
+
+    const SHELL_THEMES = [
+      { bg: 'from-pink-400 via-rose-400 to-pink-500', border: 'border-pink-300/60' },
+      { bg: 'from-sky-400 via-blue-500 to-indigo-600', border: 'border-sky-300/60' },
+      { bg: 'from-amber-300 via-yellow-400 to-orange-400', border: 'border-yellow-200/70' },
+      { bg: 'from-emerald-400 via-teal-500 to-green-600', border: 'border-emerald-300/60' },
+      { bg: 'from-purple-400 via-fuchsia-500 to-indigo-600', border: 'border-purple-300/60' }
+    ];
+    let currentShellIndex = 0;
+
+    const MENU_ACTIONS = ['feed', 'light', 'game', 'medicine', 'bath', 'stats', 'discipline'];
+
+    const state = {
+      stage: 'EGG', // EGG, BABY, CHILD, ADULT, DEAD
+      name: 'Huevo',
+      age: 0,
+      weight: 5,
+      hunger: 2,     // 0 to 4
+      happiness: 2,  // 0 to 4
+      discipline: 1, // 0 to 4
+      poop: 0,       // 0 to 4
+      isSick: false,
+      lightsOn: true,
+      isSleeping: false,
+      selectedIcon: -1, // -1 means none, 0..6 for top/bottom icons
+      mode: 'IDLE',     // IDLE, FEED_SELECT, STATS, MINIGAME, ANIMATION
+      feedCursor: 0,    // 0: Comida (Arroz), 1: Dulce (Pastel)
+      statsPage: 0,     // 0: Info, 1: Hambre/Feliz, 2: Disciplina
+      animType: null,   // EATING, CLEANING, HAPPY, NO, EVOLVE
+      animTimer: 0,
+      petX: 46,
+      petDir: 1,
+      frame: 0,
+      ticks: 0,
+      miniGame: {
+        round: 1,
+        score: 0,
+        petSide: 0,     // 0: Left, 1: Right
+        playerPick: -1, // -1: choosing, 0: Left, 1: Right
+        showingResult: false
+      }
+    };
+
+    let toastTimeout = null;
+    function showToast(msg, duration = 1800) {
+      const toast = document.getElementById('lcdToast');
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, duration);
+    }
+
+    function updateHUD() {
+      document.getElementById('petNameBadge').textContent = state.name;
+      document.getElementById('hudAge').textContent = state.age;
+      document.getElementById('hudWeight').textContent = state.weight;
+
+      const stageNames = {
+        EGG: 'Huevo',
+        BABY: 'Bebé',
+        CHILD: 'Niño',
+        ADULT: 'Adulto',
+        DEAD: 'Ángel'
+      };
+      document.getElementById('hudStage').textContent = stageNames[state.stage] || 'Bebé';
+
+      // Update active menu icon highlight
+      const iconBtns = document.querySelectorAll('.lcd-icon[data-action]');
+      iconBtns.forEach((btn, idx) => {
+        if (idx === state.selectedIcon) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      // Attention icon check
+      const needsHelp = (state.stage !== 'EGG' && state.stage !== 'DEAD') &&
+        (state.hunger === 0 || state.happiness === 0 || state.poop >= 2 || state.isSick);
+      const attIcon = document.getElementById('attentionIcon');
+      if (needsHelp) {
+        attIcon.classList.add('active');
+      } else {
+        attIcon.classList.remove('active');
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('clockIndicator').textContent = `${hh}:${mm}`;
+    }
+
+    function drawBitmap(bitmap, startX, startY, scale = 3, color = PIXEL_ON) {
+      ctx.fillStyle = color;
+      for (let r = 0; r < bitmap.length; r++) {
+        const row = bitmap[r];
+        for (let c = 0; c < row.length; c++) {
+          if (row[c] === '1') {
+            ctx.fillRect(startX + c * scale, startY + r * scale, scale, scale);
+          }
+        }
+      }
+    }
+
+    function drawPixelText(text, x, y, size = 7, color = PIXEL_ON, align = 'left') {
+      ctx.fillStyle = color;
+      ctx.font = `bold ${size}px "Press Start 2P", monospace`;
+      ctx.textAlign = align;
+      ctx.fillText(text, x, y);
+      ctx.textAlign = 'left';
+    }
+
+    function drawBackgroundGrid() {
+      if (!state.lightsOn && state.mode === 'IDLE') {
+        ctx.fillStyle = PIXEL_ON;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        return;
+      }
+      ctx.fillStyle = PIXEL_BG;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function getCurrentPetSprite() {
+      const f = state.frame % 2 === 0;
+      if (state.stage === 'EGG') return f ? SPRITES.EGG_1 : SPRITES.EGG_2;
+      if (state.stage === 'BABY') return f ? SPRITES.BABY_1 : SPRITES.BABY_2;
+      if (state.stage === 'CHILD') return f ? SPRITES.CHILD_1 : SPRITES.CHILD_2;
+      return f ? SPRITES.ADULT_1 : SPRITES.ADULT_2;
+    }
+
+    function renderIdleScreen() {
+      if (!state.lightsOn) {
+        drawPixelText('Zzz...', 64, 38, 8, PIXEL_BG, 'center');
+        drawPixelText('MODO NOCHE', 64, 56, 6, PIXEL_BG, 'center');
+        return;
+      }
+
+      if (state.stage === 'DEAD') {
+        drawPixelText('R.I.P.', 64, 34, 9, PIXEL_ON, 'center');
+        drawPixelText('PULSA B PARA', 64, 54, 6, PIXEL_ON, 'center');
+        drawPixelText('NUEVO HUEVO', 64, 66, 6, PIXEL_ON, 'center');
+        return;
+      }
+
+      const sprite = getCurrentPetSprite();
+      const scale = 3;
+      const spriteY = state.stage === 'BABY' ? 36 : 28;
+      drawBitmap(sprite, state.petX, spriteY, scale, PIXEL_ON);
+
+      if (state.stage === 'EGG') {
+        drawPixelText('PULSA B', 64, 78, 6, PIXEL_ON, 'center');
+        return;
+      }
+
+      // Draw sickness skull
+      if (state.isSick) {
+        drawBitmap(SPRITES.SKULL, 10, 12, 2, PIXEL_ON);
+      }
+
+      // Draw sleeping Zzz if sleeping with lights on
+      if (state.isSleeping) {
+        drawPixelText('Zzz', state.petX + 26, 22, 6, PIXEL_ON);
+      }
+
+      // Draw poop piles on the right side
+      for (let i = 0; i < state.poop; i++) {
+        const py = 54 - (i * 14);
+        drawBitmap(SPRITES.POOP, 104, py, 2, PIXEL_ON);
+      }
+    }
+
+    function renderFeedMenu() {
+      drawPixelText('ALIMENTAR:', 10, 18, 7);
+      drawPixelText(`${state.feedCursor === 0 ? '>' : ' '} COMIDA`, 14, 42, 7);
+      drawPixelText(`${state.feedCursor === 1 ? '>' : ' '} DULCE`, 14, 64, 7);
+    }
+
+    function renderStatsScreen() {
+      if (state.statsPage === 0) {
+        drawPixelText(state.name.toUpperCase(), 64, 20, 7, PIXEL_ON, 'center');
+        drawPixelText(`EDAD: ${state.age} D`, 14, 44, 7);
+        drawPixelText(`PESO: ${state.weight} G`, 14, 64, 7);
+      } else if (state.statsPage === 1) {
+        drawPixelText('HAMBRE', 12, 20, 6);
+        for (let i = 0; i < 4; i++) {
+          drawBitmap(i < state.hunger ? SPRITES.HEART_FULL : SPRITES.HEART_EMPTY, 12 + i * 24, 26, 2);
+        }
+        drawPixelText('FELICIDAD', 12, 54, 6);
+        for (let i = 0; i < 4; i++) {
+          drawBitmap(i < state.happiness ? SPRITES.HEART_FULL : SPRITES.HEART_EMPTY, 12 + i * 24, 60, 2);
+        }
+      } else {
+        drawPixelText('DISCIPLINA', 12, 24, 6);
+        ctx.strokeStyle = PIXEL_ON;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(12, 32, 100, 12);
+        ctx.fillStyle = PIXEL_ON;
+        ctx.fillRect(14, 34, (state.discipline / 4) * 96, 8);
+        drawPixelText(state.isSick ? 'SALUD: ENFERMO' : 'SALUD: SANO', 12, 66, 6);
+      }
+    }
+
+    function renderMiniGame() {
+      drawPixelText(`RONDA ${state.miniGame.round}/5`, 64, 15, 6, PIXEL_ON, 'center');
+      const sprite = getCurrentPetSprite();
+      drawBitmap(sprite, 46, 24, 2, PIXEL_ON);
+
+      if (!state.miniGame.showingResult) {
+        drawPixelText('< [A]   [B] >', 64, 64, 6, PIXEL_ON, 'center');
+        drawPixelText('ADIVINA LADO', 64, 78, 6, PIXEL_ON, 'center');
+      } else {
+        const dirText = state.miniGame.petSide === 0 ? '<< IZQ' : 'DER >>';
+        const wonRound = state.miniGame.playerPick === state.miniGame.petSide;
+        drawPixelText(dirText, 64, 62, 7, PIXEL_ON, 'center');
+        drawPixelText(wonRound ? '¡BIEN!' : '¡FALLO!', 64, 78, 7, PIXEL_ON, 'center');
+      }
+    }
+
+    function renderAnimation() {
+      const sprite = getCurrentPetSprite();
+      if (state.animType === 'CLEANING') {
+        const waveX = 128 - (state.animTimer * 22);
+        ctx.fillStyle = PIXEL_ON;
+        ctx.fillRect(waveX, 10, 12, 68);
+        drawPixelText('LIMPIANDO...', 64, 46, 6, PIXEL_ON, 'center');
+      } else if (state.animType === 'EATING') {
+        drawBitmap(sprite, 56, 28, 3, PIXEL_ON);
+        drawBitmap(SPRITES.HEART_FULL, 22, 36, 2, PIXEL_ON);
+        drawPixelText('¡ÑAM ÑAM!', 64, 78, 6, PIXEL_ON, 'center');
+      } else if (state.animType === 'HAPPY') {
+        drawBitmap(sprite, 46, 22 - (state.frame % 2) * 6, 3, PIXEL_ON);
+        drawBitmap(SPRITES.HEART_FULL, 18, 24, 2, PIXEL_ON);
+        drawBitmap(SPRITES.HEART_FULL, 92, 24, 2, PIXEL_ON);
+        drawPixelText('¡MUY FELIZ!', 64, 78, 6, PIXEL_ON, 'center');
+      } else if (state.animType === 'EVOLVE') {
+        const scale = state.frame % 2 === 0 ? 3 : 2;
+        drawBitmap(sprite, 46, 26, scale, PIXEL_ON);
+        drawPixelText('¡EVOLUCIÓN!', 64, 78, 6, PIXEL_ON, 'center');
+      }
+    }
+
+    function renderFrame() {
+      drawBackgroundGrid();
+
+      if (state.mode === 'IDLE') {
+        renderIdleScreen();
+      } else if (state.mode === 'FEED_SELECT') {
+        renderFeedMenu();
+      } else if (state.mode === 'STATS') {
+        renderStatsScreen();
+      } else if (state.mode === 'MINIGAME') {
+        renderMiniGame();
+      } else if (state.mode === 'ANIMATION') {
+        renderAnimation();
+      }
+    }
+
+    function hatchEgg() {
+      if (state.stage !== 'EGG') return;
+      state.stage = 'BABY';
+      state.name = 'Babytchi';
+      state.hunger = 2;
+      state.happiness = 2;
+      sound.playEvolve();
+      showToast('¡NACIÓ BABYTCHI!');
+      updateHUD();
+    }
+
+    function startAnimation(type, durationTicks = 5) {
+      state.mode = 'ANIMATION';
+      state.animType = type;
+      state.animTimer = durationTicks;
+      renderFrame();
+    }
+
+    function feedPet(isSnack) {
+      if (!state.lightsOn) {
+        sound.playSad();
+        showToast('ESTÁ DURMIENDO');
+        return;
+      }
+      if (!isSnack && state.hunger >= 4) {
+        sound.playSad();
+        showToast('NO TIENE HAMBRE');
+        state.mode = 'IDLE';
+        return;
+      }
+      if (!isSnack) {
+        state.hunger = Math.min(4, state.hunger + 1);
+        state.weight += 1;
+      } else {
+        state.happiness = Math.min(4, state.happiness + 1);
+        state.weight += 2;
+      }
+      sound.playEat();
+      startAnimation('EATING', 5);
+      updateHUD();
+    }
+
+    function executeIconAction(actionName) {
+      if (state.stage === 'EGG') {
+        hatchEgg();
+        return;
+      }
+      if (state.stage === 'DEAD') {
+        resetPet();
+        return;
+      }
+
+      switch (actionName) {
+        case 'feed':
+          state.mode = 'FEED_SELECT';
+          state.feedCursor = 0;
+          sound.beepConfirm();
+          break;
+        case 'light':
+          state.lightsOn = !state.lightsOn;
+          sound.beepConfirm();
+          showToast(state.lightsOn ? 'LUZ ENCENDIDA' : 'LUZ APAGADA');
+          break;
+        case 'game':
+          if (!state.lightsOn) {
+            sound.playSad();
+            showToast('ESTÁ DURMIENDO');
+            return;
+          }
+          state.mode = 'MINIGAME';
+          state.miniGame = { round: 1, score: 0, petSide: 0, playerPick: -1, showingResult: false };
+          sound.beepConfirm();
+          break;
+        case 'medicine':
+          if (state.isSick) {
+            state.isSick = false;
+            sound.playHappy();
+            showToast('¡CURADO!');
+            startAnimation('HAPPY', 5);
+          } else {
+            sound.playSad();
+            showToast('ESTÁ SANO');
+          }
+          break;
+        case 'bath':
+          if (state.poop > 0) {
+            state.poop = 0;
+            sound.playHappy();
+            startAnimation('CLEANING', 5);
+          } else {
+            sound.beepCancel();
+            showToast('YA ESTÁ LIMPIO');
+          }
+          break;
+        case 'stats':
+          state.mode = 'STATS';
+          state.statsPage = 0;
+          sound.beepConfirm();
+          break;
+        case 'discipline':
+          state.discipline = Math.min(4, state.discipline + 1);
+          sound.playHappy();
+          showToast('¡EDUCADO! +1');
+          startAnimation('HAPPY', 4);
+          break;
+      }
+      updateHUD();
+      renderFrame();
+    }
+
+    function handleButtonA() {
+      if (state.stage === 'EGG') {
+        hatchEgg();
+        return;
+      }
+      if (state.mode === 'IDLE') {
+        state.selectedIcon = (state.selectedIcon + 1) % MENU_ACTIONS.length;
+        sound.beepSelect();
+        updateHUD();
+      } else if (state.mode === 'FEED_SELECT') {
+        state.feedCursor = state.feedCursor === 0 ? 1 : 0;
+        sound.beepSelect();
+      } else if (state.mode === 'STATS') {
+        state.statsPage = (state.statsPage + 1) % 3;
+        sound.beepSelect();
+      } else if (state.mode === 'MINIGAME' && !state.miniGame.showingResult) {
+        playMiniGameTurn(0); // Pick Left
+      }
+      renderFrame();
+    }
+
+    function handleButtonB() {
+      if (state.stage === 'EGG') {
+        hatchEgg();
+        return;
+      }
+      if (state.stage === 'DEAD') {
+        resetPet();
+        return;
+      }
+
+      if (state.mode === 'IDLE') {
+        if (state.selectedIcon === -1) {
+          sound.playHappy();
+          showToast('¡HOLA!');
+          startAnimation('HAPPY', 4);
+        } else {
+          executeIconAction(MENU_ACTIONS[state.selectedIcon]);
+        }
+      } else if (state.mode === 'FEED_SELECT') {
+        feedPet(state.feedCursor === 1);
+      } else if (state.mode === 'STATS') {
+        state.statsPage = (state.statsPage + 1) % 3;
+        sound.beepSelect();
+      } else if (state.mode === 'MINIGAME' && !state.miniGame.showingResult) {
+        playMiniGameTurn(1); // Pick Right
+      }
+      renderFrame();
+    }
+
+    function handleButtonC() {
+      if (state.mode !== 'IDLE') {
+        state.mode = 'IDLE';
+        sound.beepCancel();
+      } else if (state.selectedIcon !== -1) {
+        state.selectedIcon = -1;
+        sound.beepCancel();
+        updateHUD();
+      } else {
+        state.mode = 'STATS';
+        state.statsPage = 0;
+        sound.beepConfirm();
+      }
+      renderFrame();
+    }
+
+    function playMiniGameTurn(playerChoice) {
+      state.miniGame.petSide = Math.random() < 0.5 ? 0 : 1;
+      state.miniGame.playerPick = playerChoice;
+      state.miniGame.showingResult = true;
+
+      if (playerChoice === state.miniGame.petSide) {
+        state.miniGame.score++;
+        sound.beepConfirm();
+      } else {
+        sound.beepCancel();
+      }
+      renderFrame();
+
+      setTimeout(() => {
+        if (state.mode !== 'MINIGAME') return;
+        if (state.miniGame.round < 5) {
+          state.miniGame.round++;
+          state.miniGame.showingResult = false;
+          renderFrame();
+        } else {
+          if (state.miniGame.score >= 3) {
+            state.happiness = Math.min(4, state.happiness + 1);
+            state.weight = Math.max(5, state.weight - 1);
+            sound.playHappy();
+            showToast(`¡GANASTE ${state.miniGame.score}/5!`);
+            startAnimation('HAPPY', 5);
+          } else {
+            sound.playSad();
+            showToast(`FIN: ${state.miniGame.score}/5`);
+            state.mode = 'IDLE';
+          }
+          updateHUD();
+          renderFrame();
+        }
+      }, 900);
+    }
+
+    window.quickAction = function(type) {
+      if (state.stage === 'EGG') {
+        hatchEgg();
+        return;
+      }
+      if (type === 'feed_meal') feedPet(false);
+      if (type === 'feed_snack') feedPet(true);
+      if (type === 'play_game') executeIconAction('game');
+      if (type === 'clean_bath') executeIconAction('bath');
+      renderFrame();
+    };
+
+    function resetPet() {
+      state.stage = 'EGG';
+      state.name = 'Huevo';
+      state.age = 0;
+      state.weight = 5;
+      state.hunger = 2;
+      state.happiness = 2;
+      state.discipline = 1;
+      state.poop = 0;
+      state.isSick = false;
+      state.lightsOn = true;
+      state.isSleeping = false;
+      state.selectedIcon = -1;
+      state.mode = 'IDLE';
+      state.ticks = 0;
+      sound.playEvolve();
+      showToast('NUEVO HUEVO');
+      updateHUD();
+      renderFrame();
+    }
+
+    // Main simulation loop (every 650ms)
+    setInterval(() => {
+      state.frame++;
+      state.ticks++;
+
+      // Auto-hatch egg after 6 ticks (~4 seconds)
+      if (state.stage === 'EGG' && state.ticks >= 6) {
+        hatchEgg();
+      }
+
+      // Animation countdown
+      if (state.mode === 'ANIMATION') {
+        state.animTimer--;
+        if (state.animTimer <= 0) {
+          state.mode = 'IDLE';
+        }
+      }
+
+      // Pet horizontal walk in IDLE mode
+      if (state.mode === 'IDLE' && state.stage !== 'EGG' && state.stage !== 'DEAD' && state.lightsOn) {
+        state.petX += state.petDir * 4;
+        if (state.petX > 68) state.petDir = -1;
+        if (state.petX < 18) state.petDir = 1;
+      }
+
+      // Pet biological needs and evolution progression
+      if (state.stage !== 'EGG' && state.stage !== 'DEAD') {
+        if (state.ticks % 28 === 0) {
+          state.hunger = Math.max(0, state.hunger - 1);
+        }
+        if (state.ticks % 34 === 0) {
+          state.happiness = Math.max(0, state.happiness - 1);
+        }
+        if (state.ticks % 42 === 0 && state.poop < 4) {
+          state.poop++;
+          if (state.poop >= 3) state.isSick = true;
+        }
+        if (state.ticks % 50 === 0) {
+          state.age++;
+          if (state.stage === 'BABY' && state.age >= 1) {
+            state.stage = 'CHILD';
+            state.name = 'Marutchi';
+            sound.playEvolve();
+            showToast('¡EVOLUCIONÓ A MARUTCHI!');
+            startAnimation('EVOLVE', 6);
+          } else if (state.stage === 'CHILD' && state.age >= 3) {
+            state.stage = 'ADULT';
+            state.name = state.discipline >= 2 ? 'Mametchi' : 'Kuchipatchi';
+            sound.playEvolve();
+            showToast(`¡ES ${state.name.toUpperCase()}!`);
+            startAnimation('EVOLVE', 6);
+          }
+        }
+        updateHUD();
+      }
+
+      renderFrame();
+    }, 650);
+
+    setInterval(updateClock, 10000);
+
+    // Bind Hardware Buttons
+    document.getElementById('btnA').addEventListener('click', handleButtonA);
+    document.getElementById('btnB').addEventListener('click', handleButtonB);
+    document.getElementById('btnC').addEventListener('click', handleButtonC);
+
+    // Direct tap on LCD icons
+    document.querySelectorAll('.lcd-icon[data-action]').forEach((btn, idx) => {
+      btn.addEventListener('click', () => {
+        state.selectedIcon = idx;
+        updateHUD();
+        executeIconAction(btn.getAttribute('data-action'));
+      });
+    });
+
+    // Header Controls
+    document.getElementById('soundToggleBtn').addEventListener('click', () => {
+      sound.muted = !sound.muted;
+      document.getElementById('soundIcon').textContent = sound.muted ? '🔇' : '🔊';
+      showToast(sound.muted ? 'SONIDO OFF' : 'SONIDO ON');
+    });
+
+    document.getElementById('shellColorBtn').addEventListener('click', () => {
+      const shell = document.getElementById('eggShell');
+      const prev = SHELL_THEMES[currentShellIndex];
+      shell.classList.remove(...prev.bg.split(' '), prev.border);
+      currentShellIndex = (currentShellIndex + 1) % SHELL_THEMES.length;
+      const next = SHELL_THEMES[currentShellIndex];
+      shell.classList.add(...next.bg.split(' '), next.border);
+      sound.beepSelect();
+    });
+
+    // Modals (Help & Reset)
+    const helpModal = document.getElementById('helpModal');
+    document.getElementById('helpModalBtn').addEventListener('click', () => helpModal.classList.remove('hidden'));
+    document.getElementById('closeHelpBtn').addEventListener('click', () => helpModal.classList.add('hidden'));
+    document.getElementById('okHelpBtn').addEventListener('click', () => helpModal.classList.add('hidden'));
+
+    const resetModal = document.getElementById('resetModal');
+    document.getElementById('resetModalBtn').addEventListener('click', () => resetModal.classList.remove('hidden'));
+    document.getElementById('cancelResetBtn').addEventListener('click', () => resetModal.classList.add('hidden'));
+    document.getElementById('confirmResetBtn').addEventListener('click', () => {
+      resetModal.classList.add('hidden');
+      resetPet();
+    });
+
+    // Keyboard Support
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') handleButtonA();
+      if (e.key === 'b' || e.key === 'B' || e.key === 'Enter' || e.key === ' ') handleButtonB();
+      if (e.key === 'c' || e.key === 'C' || e.key === 'Escape' || e.key === 'ArrowRight') handleButtonC();
+    });
+
+    // Initial boot
+    updateClock();
+    updateHUD();
+    renderFrame();
+  </script>
+</body>
+</html>
