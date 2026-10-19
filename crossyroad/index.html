@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossy Road Arcade 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a2e;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        /* Custom retro scanline overlay effect for arcade feel */
+        .arcade-overlay {
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 6px 100%;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="relative bg-slate-900 text-white overflow-hidden">
+
+    <div class="arcade-overlay"></div>
+
+    <!-- UI Overlay: Main Menu / Start Screen -->
+    <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm z-30 transition-opacity duration-300">
+        <div class="text-center px-4 max-w-md">
+            <h1 class="text-5xl md:text-6xl font-extrabold tracking-wider text-yellow-400 drop-shadow-[0_5px_5px_rgba(0,0,0,0.8)] mb-2 animate-bounce">CROSSY ROAD</h1>
+            <p class="text-slate-300 text-sm md:text-base mb-8">¡Cruza la calle, esquiva los autos y salta sobre los troncos del río!</p>
+            <button id="start-btn" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold text-xl rounded-2xl shadow-xl transform active:scale-95 transition-all duration-150 border-b-4 border-green-700">
+                ¡JUGAR AHORA!
+            </button>
+            <div class="mt-6 text-xs text-slate-400">
+                Controles PC: W, A, S, D o Flechas | Móvil: Botones en pantalla
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Overlay: Game HUD -->
+    <div id="hud" class="absolute top-0 left-0 w-full p-6 flex justify-between items-start pointer-events-none z-20 hidden">
+        <div class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-2xl px-5 py-3 shadow-lg pointer-events-auto">
+            <div class="text-xs text-slate-400 font-semibold tracking-wider">PUNTUACIÓN</div>
+            <div id="score-display" class="text-3xl font-black text-yellow-400">0</div>
+        </div>
+        <div class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-2xl px-5 py-3 shadow-lg pointer-events-auto text-right">
+            <div class="text-xs text-slate-400 font-semibold tracking-wider">RÉCORD</div>
+            <div id="high-score-display" class="text-3xl font-black text-emerald-400">0</div>
+        </div>
+    </div>
+
+    <!-- UI Overlay: Game Over Screen -->
+    <div id="game-over-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-30 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="text-center px-4 max-w-md bg-slate-800/90 border border-slate-700 rounded-3xl p-8 shadow-2xl">
+            <h2 class="text-4xl font-extrabold text-red-500 mb-2 drop-shadow">¡FIN DEL JUEGO!</h2>
+            <p class="text-slate-300 mb-6">Tu pollito no pudo cruzar la calle...</p>
+            
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700">
+                    <div class="text-xs text-slate-400">FINAL</div>
+                    <div id="final-score" class="text-3xl font-black text-yellow-400">0</div>
+                </div>
+                <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-700">
+                    <div class="text-xs text-slate-400">MEJOR</div>
+                    <div id="final-high-score" class="text-3xl font-black text-emerald-400">0</div>
+                </div>
+            </div>
+
+            <button id="restart-btn" class="w-full py-4 bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-slate-950 font-extrabold text-lg rounded-2xl shadow-xl transform active:scale-95 transition-all duration-150 border-b-4 border-amber-700">
+                JUGAR DE NUEVO
+            </button>
+        </div>
+    </div>
+
+    <!-- Touch / Virtual D-Pad for Mobile Devices -->
+    <div id="mobile-controls" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 grid grid-cols-3 gap-2 z-25 md:hidden w-64 h-40">
+        <div></div>
+        <button id="btn-up" class="bg-white/20 hover:bg-white/30 active:bg-white/40 border border-white/30 rounded-2xl flex items-center justify-center text-2xl shadow-lg backdrop-blur">⬆️</button>
+        <div></div>
+        <button id="btn-left" class="bg-white/20 hover:bg-white/30 active:bg-white/40 border border-white/30 rounded-2xl flex items-center justify-center text-2xl shadow-lg backdrop-blur">⬅️</button>
+        <button id="btn-down" class="bg-white/20 hover:bg-white/30 active:bg-white/40 border border-white/30 rounded-2xl flex items-center justify-center text-2xl shadow-lg backdrop-blur">⬇️</button>
+        <button id="btn-right" class="bg-white/20 hover:bg-white/30 active:bg-white/40 border border-white/30 rounded-2xl flex items-center justify-center text-2xl shadow-lg backdrop-blur">➡️</button>
+    </div>
+
+    <script>
+        // Game State & Constants
+        const tileSize = 1;
+        const gridWidth = 15; // Number of columns (-7 to 7)
+        let score = 0;
+        let highScore = localStorage.getItem('crossy_highscore') || 0;
+        let gameStarted = false;
+        let gameOver = false;
+
+        // DOM Elements
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const hud = document.getElementById('hud');
+        const scoreDisplay = document.getElementById('score-display');
+        const highScoreDisplay = document.getElementById('high-score-display');
+        const finalScore = document.getElementById('final-score');
+        const finalHighScore = document.getElementById('final-high-score');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        highScoreDisplay.innerText = highScore;
+
+        // Three.js Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1e293b);
+        scene.fog = new THREE.FogExp2(0x1e293b, 0.025);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.8);
+        dirLight.position.set(15, 25, 15);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 50;
+        const d = 15;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        scene.add(dirLight);
+
+        // Materials cache for performance
+        const materials = {
+            grass: new THREE.MeshLambertMaterial({ color: 0x4ade80 }),
+            grassDark: new THREE.MeshLambertMaterial({ color: 0x22c55e }),
+            road: new THREE.MeshLambertMaterial({ color: 0x334155 }),
+            roadLine: new THREE.MeshLambertMaterial({ color: 0xfacc15 }),
+            water: new THREE.MeshLambertMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 }),
+            log: new THREE.MeshLambertMaterial({ color: 0x92400e }),
+            carRed: new THREE.MeshLambertMaterial({ color: 0xef4444 }),
+            carBlue: new THREE.MeshLambertMaterial({ color: 0x3b82f6 }),
+            carYellow: new THREE.MeshLambertMaterial({ color: 0xeab308 }),
+            treeTrunk: new THREE.MeshLambertMaterial({ color: 0x78350f }),
+            treeLeaves: new THREE.MeshLambertMaterial({ color: 0x15803d }),
+            chickenBody: new THREE.MeshLambertMaterial({ color: 0xffffff }),
+            chickenBeak: new THREE.MeshLambertMaterial({ color: 0xf97316 }),
+            chickenComb: new THREE.MeshLambertMaterial({ color: 0xdc2626 }),
+            chickenEye: new THREE.MeshLambertMaterial({ color: 0x0f172a })
+        };
+
+        // Create Player (Chicken) Group
+        const playerGroup = new THREE.Group();
+        
+        // Body
+        const bodyGeo = new THREE.BoxGeometry(0.6, 0.5, 0.6);
+        const bodyMesh = new THREE.Mesh(bodyGeo, materials.chickenBody);
+        bodyMesh.position.y = 0.25;
+        bodyMesh.castShadow = true;
+        playerGroup.add(bodyMesh);
+
+        // Head/Beak/Comb
+        const beakGeo = new THREE.BoxGeometry(0.2, 0.15, 0.3);
+        const beakMesh = new THREE.Mesh(beakGeo, materials.chickenBeak);
+        beakMesh.position.set(0, 0.35, 0.35);
+        playerGroup.add(beakMesh);
+
+        const combGeo = new THREE.BoxGeometry(0.1, 0.2, 0.3);
+        const combMesh = new THREE.Mesh(combGeo, materials.chickenComb);
+        combMesh.position.set(0, 0.65, 0);
+        playerGroup.add(combMesh);
+
+        scene.add(playerGroup);
+
+        // Player state
+        let playerPos = { x: 0, z: 0 };
+        let targetPos = { x: 0, z: 0 };
+        let isJumping = false;
+        let jumpProgress = 1;
+        let jumpStartPos = { x: 0, z: 0 };
+        let jumpTargetPos = { x: 0, z: 0 };
+
+        const rows = []; // Stores row objects { type, z, mesh, obstacles, speed, direction }
+        const visibleRowsCount = 40;
+        let maxZReached = 0;
+
+        function createRow(z) {
+            // Decide row type based on z position or random chance
+            let type = 'grass';
+            if (z > 3) {
+                const rand = Math.random();
+                if (rand < 0.45) type = 'road';
+                else if (rand < 0.75) type = 'water';
+                else type = 'grass';
+            } else if (z > 0) {
+                type = Math.random() < 0.5 ? 'road' : 'grass';
+            }
+
+            const rowGroup = new THREE.Group();
+            rowGroup.position.z = -z * tileSize;
+
+            let rowData = { type, z, mesh: rowGroup, obstacles: [], speed: 0, direction: 1 };
+
+            // Base ground mesh
+            let baseGeo = new THREE.BoxGeometry(gridWidth * tileSize, 0.2, tileSize);
+            let baseMat = materials.grass;
+            if (type === 'road') baseMat = materials.road;
+            if (type === 'water') baseMat = materials.water;
+
+            const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+            baseMesh.position.y = -0.1;
+            baseMesh.receiveShadow = true;
+            rowGroup.add(baseMesh);
+
+            // Populate row elements
+            if (type === 'grass') {
+                // Add trees randomly
+                for (let x = -Math.floor(gridWidth/2); x <= Math.floor(gridWidth/2); x++) {
+                    if (Math.random() < 0.25 && !(z === 0 && x === 0)) {
+                        const tree = createTree();
+                        tree.position.x = x * tileSize;
+                        rowGroup.add(tree);
+                        rowData.obstacles.push({ type: 'tree', x: x });
+                    }
+                }
+            } else if (type === 'road') {
+                rowData.speed = (0.04 + Math.random() * 0.05) * (Math.random() < 0.5 ? 1 : -1);
+                rowData.direction = rowData.speed > 0 ? 1 : -1;
+                
+                // Add cars
+                const numCars = 1 + Math.floor(Math.random() * 2);
+                for (let i = 0; i < numCars; i++) {
+                    const car = createCar();
+                    const startX = (i * 6 - 3) * tileSize;
+                    car.position.x = startX;
+                    rowGroup.add(car);
+                    rowData.obstacles.push({ mesh: car, width: 1.2, x: startX });
+                }
+            } else if (type === 'water') {
+                rowData.speed = (0.03 + Math.random() * 0.03) * (Math.random() < 0.5 ? 1 : -1);
+                rowData.direction = rowData.speed > 0 ? 1 : -1;
+
+                // Add logs
+                const numLogs = 2;
+                for (let i = 0; i < numLogs; i++) {
+                    const log = createLog();
+                    const startX = (i * 7 - 3.5) * tileSize;
+                    log.position.x = startX;
+                    rowGroup.add(log);
+                    rowData.obstacles.push({ mesh: log, width: 2.2, x: startX });
+                }
+            }
+
+            scene.add(rowGroup);
+            return rowData;
+        }
+
+        function createTree() {
+            const treeGroup = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.3), materials.treeTrunk);
+            trunk.position.y = 0.3;
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            const leaves = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), materials.treeLeaves);
+            leaves.position.y = 0.8;
+            leaves.castShadow = true;
+            treeGroup.add(leaves);
+            return treeGroup;
+        }
+
+        function createCar() {
+            const carGroup = new THREE.Group();
+            const carMat = Math.random() < 0.4 ? materials.carRed : (Math.random() < 0.7 ? materials.carBlue : materials.carYellow);
+            
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.6), carMat);
+            body.position.y = 0.3;
+            body.castShadow = true;
+            carGroup.add(body);
+
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.5), materials.chickenBody);
+            cabin.position.set(0.1, 0.65, 0);
+            cabin.castShadow = true;
+            carGroup.add(cabin);
+
+            return carGroup;
+        }
+
+        function createLog() {
+            const logMesh = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.3, 0.8), materials.log);
+            logMesh.position.y = 0.15;
+            logMesh.castShadow = true;
+            return logMesh;
+        }
+
+        // Initialize world rows
+        function initWorld() {
+            rows.forEach(r => scene.remove(r.mesh));
+            rows.length = 0;
+            for (let z = -2; z < visibleRowsCount; z++) {
+                rows.push(createRow(z));
+            }
+        }
+
+        function movePlayer(dx, dz) {
+            if (!gameStarted || gameOver || isJumping) return;
+
+            const newX = playerPos.x + dx;
+            const newZ = playerPos.z + dz;
+
+            // Boundary checks
+            if (newX < -Math.floor(gridWidth/2) || newX > Math.floor(gridWidth/2)) return;
+            if (newZ < playerPos.z - 3) return; // Prevent going too far backwards
+
+            // Check tree collision on target row
+            const targetRow = rows.find(r => r.z === newZ);
+            if (targetRow && targetRow.type === 'grass') {
+                const hasTree = targetRow.obstacles.some(obs => obs.type === 'tree' && obs.x === newX);
+                if (hasTree) return; // Blocked by tree
+            }
+
+            jumpStartPos = { x: playerPos.x, z: playerPos.z };
+            jumpTargetPos = { x: newX, z: newZ };
+            isJumping = true;
+            jumpProgress = 0;
+
+            playerPos.x = newX;
+            playerPos.z = newZ;
+
+            if (newZ > maxZReached) {
+                maxZReached = newZ;
+                score = maxZReached;
+                scoreDisplay.innerText = score;
+
+                // Generate new forward rows as player advances
+                const furthestZ = rows[rows.length - 1].z;
+                if (newZ + 15 > furthestZ) {
+                    rows.push(createRow(furthestZ + 1));
+                    // Clean up old rows behind
+                    const oldRow = rows.shift();
+                    scene.remove(oldRow.mesh);
+                }
+            }
+
+            // Rotate player toward direction
+            if (dx > 0) playerGroup.rotation.y = Math.PI / 2;
+            else if (dx < 0) playerGroup.rotation.y = -Math.PI / 2;
+            else if (dz > 0) playerGroup.rotation.y = 0;
+            else if (dz < 0) playerGroup.rotation.y = Math.PI;
+        }
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w':
+                case 'arrowup':
+                    movePlayer(0, 1);
+                    break;
+                case 's':
+                case 'arrowdown':
+                    movePlayer(0, -1);
+                    break;
+                case 'a':
+                case 'arrowleft':
+                    movePlayer(-1, 0);
+                    break;
+                case 'd':
+                case 'arrowright':
+                    movePlayer(1, 0);
+                    break;
+            }
+        });
+
+        // Mobile Button Controls
+        document.getElementById('btn-up').addEventListener('click', () => movePlayer(0, 1));
+        document.getElementById('btn-down').addEventListener('click', () => movePlayer(0, -1));
+        document.getElementById('btn-left').addEventListener('click', () => movePlayer(-1, 0));
+        document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
+
+        // Touch swipe support
+        let touchStartX = 0;
+        let touchStartY = 0;
+        window.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, {passive: true});
+
+        window.addEventListener('touchend', (e) => {
+            if (!gameStarted || gameOver) return;
+            const diffX = e.changedTouches[0].clientX - touchStartX;
+            const diffY = e.changedTouches[0].clientY - touchStartY;
+
+            if (Math.abs(diffX) > Math.abs(diffY)) {
+                if (Math.abs(diffX) > 30) {
+                    movePlayer(diffX > 0 ? 1 : -1, 0);
+                }
+            } else {
+                if (Math.abs(diffY) > 30) {
+                    movePlayer(0, diffY > 0 ? -1 : 1); // Note: screen Y is inverted
+                }
+            }
+        }, {passive: true});
+
+        function triggerGameOver() {
+            gameOver = true;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('crossy_highscore', highScore);
+                highScoreDisplay.innerText = highScore;
+            }
+            finalScore.innerText = score;
+            finalHighScore.innerText = highScore;
+            gameOverScreen.classList.remove('opacity-0', 'pointer-events-none');
+        }
+
+        function resetGame() {
+            score = 0;
+            maxZReached = 0;
+            scoreDisplay.innerText = score;
+            playerPos = { x: 0, z: 0 };
+            targetPos = { x: 0, z: 0 };
+            playerGroup.position.set(0, 0, 0);
+            playerGroup.rotation.y = 0;
+            isJumping = false;
+            gameOver = false;
+            gameOverScreen.classList.add('opacity-0', 'pointer-events-none');
+            initWorld();
+        }
+
+        startBtn.addEventListener('click', () => {
+            startScreen.classList.add('opacity-0', 'pointer-events-none');
+            hud.classList.remove('hidden');
+            gameStarted = true;
+            resetGame();
+        });
+
+        restartBtn.addEventListener('click', () => {
+            resetGame();
+        });
+
+        // Animation & Game Loop
+        let clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            if (gameStarted && !gameOver) {
+                // Animate jump arc
+                if (isJumping) {
+                    jumpProgress += delta * 8; // Jump speed
+                    if (jumpProgress >= 1) {
+                        jumpProgress = 1;
+                        isJumping = false;
+                    }
+                    const currentX = THREE.MathUtils.lerp(jumpStartPos.x, jumpTargetPos.x, jumpProgress);
+                    const currentZ = THREE.MathUtils.lerp(jumpStartPos.z, jumpTargetPos.z, jumpProgress);
+                    const jumpHeight = Math.sin(jumpProgress * Math.PI) * 0.4;
+                    playerGroup.position.set(currentX * tileSize, jumpHeight, -currentZ * tileSize);
+                } else {
+                    playerGroup.position.x = playerPos.x * tileSize;
+                    playerGroup.position.z = -playerPos.z * tileSize;
+                }
+
+                // Update obstacles & environment
+                let onLog = false;
+                let activeWaterRow = null;
+
+                rows.forEach(row => {
+                    if (row.type === 'road' || row.type === 'water') {
+                        const limit = (gridWidth / 2) * tileSize + 1.5;
+                        row.obstacles.forEach(obs => {
+                            obs.x += row.speed;
+                            if (obs.x > limit) obs.x = -limit;
+                            if (obs.x < -limit) obs.x = limit;
+                            obs.mesh.position.x = obs.x;
+
+                            // Collision check with player (if not jumping)
+                            if (!isJumping && row.z === playerPos.z) {
+                                const playerWorldX = playerGroup.position.x;
+                                const obsWorldX = obs.x;
+                                const collisionThreshold = row.type === 'road' ? 0.7 : 1.0;
+                                
+                                if (Math.abs(playerWorldX - obsWorldX) < collisionThreshold) {
+                                    if (row.type === 'road') {
+                                        triggerGameOver();
+                                    } else if (row.type === 'water') {
+                                        onLog = true;
+                                        playerPos.x += row.speed; // Ride the log
+                                    }
+                                }
+                            }
+                        });
+
+                        // Check water drowning
+                        if (!isJumping && row.type === 'water' && row.z === playerPos.z && !onLog) {
+                            // If player is on water row but not on any log
+                            triggerGameOver();
+                        }
+                    }
+                });
+
+                // Check bounds limits (falling behind camera view)
+                const cameraZ = camera.position.z;
+                if (playerGroup.position.z > cameraZ + 5) {
+                    triggerGameOver();
+                }
+            }
+
+            // Smooth camera follow
+            const targetCameraZ = -playerPos.z + 7;
+            const targetCameraX = playerPos.x * 0.3;
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCameraZ, 0.08);
+            camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetCameraX, 0.08);
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, 8, 0.08);
+            camera.lookAt(playerPos.x * 0.2, 0, -playerPos.z + 2);
+
+            renderer.render(scene, camera);
+        }
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initial camera placement
+        camera.position.set(0, 8, 7);
+        camera.lookAt(0, 0, 0);
+
+        initWorld();
+        animate();
+    </script>
+</body>
+</html>
