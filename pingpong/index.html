@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cyber Pong 2026 - Retro Neon Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: radial-gradient(circle at center, #0f172a 0%, #030712 100%);
+      overflow: hidden;
+      color: #f8fafc;
+    }
+    .font-arcade {
+      font-family: 'Orbitron', monospace;
+    }
+    .neon-text-cyan {
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.4);
+    }
+    .neon-text-pink {
+      text-shadow: 0 0 10px rgba(236, 72, 153, 0.8), 0 0 20px rgba(236, 72, 153, 0.4);
+    }
+    .neon-border-cyan {
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.4), inset 0 0 15px rgba(6, 182, 212, 0.2);
+    }
+    .neon-border-pink {
+      box-shadow: 0 0 15px rgba(236, 72, 153, 0.4), inset 0 0 15px rgba(236, 72, 153, 0.2);
+    }
+    .cyber-btn {
+      position: relative;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+    .cyber-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.2);
+    }
+    .cyber-btn:active {
+      transform: translateY(1px);
+    }
+    /* Estilo del lienzo para mantener bordes y aspecto de mesa */
+    #pongCanvas {
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(56, 189, 248, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      background-color: #060913;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col items-center justify-between p-2 sm:p-4 relative">
+
+  <!-- Barra superior de información y controles -->
+  <header class="w-full max-w-5xl flex items-center justify-between px-3 py-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 shadow-lg z-20">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-400">
+        <i class="fa-solid fa-table-tennis-paddle-ball text-lg"></i>
+      </div>
+      <div>
+        <h1 class="font-arcade text-lg sm:text-xl font-bold tracking-wider text-white">
+          CYBER<span class="text-cyan-400">PONG</span>
+        </h1>
+        <p class="text-xs text-slate-400 flex items-center gap-2">
+          <span id="currentModeLabel" class="text-cyan-300 font-semibold uppercase">1J vs IA</span>
+          •
+          <span id="targetScoreDisplay" class="text-amber-400">A 7 Puntos</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Marcador central superior -->
+    <div class="flex items-center gap-4 sm:gap-6 font-arcade text-2xl sm:text-3xl font-black">
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-cyan-400 font-normal hidden sm:inline">P1</span>
+        <span id="scorePlayer1" class="text-cyan-400 neon-text-cyan tabular-nums">0</span>
+      </div>
+      <span class="text-slate-600 text-lg">:</span>
+      <div class="flex items-center gap-2">
+        <span id="scorePlayer2" class="text-pink-500 neon-text-pink tabular-nums">0</span>
+        <span id="scorePlayer2Label" class="text-xs text-pink-400 font-normal hidden sm:inline">IA</span>
+      </div>
+    </div>
+
+    <!-- Botones de Utilidad -->
+    <div class="flex items-center gap-2">
+      <button id="soundToggleBtn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition border border-slate-700" title="Sonido (M)">
+        <i id="soundIcon" class="fa-solid fa-volume-high text-sm"></i>
+      </button>
+      <button id="pauseToggleBtn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition border border-slate-700" title="Pausar (Espacio)">
+        <i id="pauseIcon" class="fa-solid fa-pause text-sm"></i>
+      </button>
+      <button id="settingsBtn" class="w-9 h-9 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/40 text-cyan-300 flex items-center justify-center transition border border-cyan-500/30" title="Configuración">
+        <i class="fa-solid fa-gear text-sm"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Área de Juego (Canvas) -->
+  <main class="w-full flex-1 max-w-5xl flex items-center justify-center my-2 relative">
+    <canvas id="pongCanvas" class="rounded-2xl max-w-full max-h-full aspect-[16/9] w-full block shadow-2xl"></canvas>
+
+    <!-- Indicador de Rally / Velocidad en vivo -->
+    <div class="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full border border-slate-800 text-xs font-mono text-slate-300 flex items-center gap-4 pointer-events-none">
+      <div>RALLY: <span id="rallyCount" class="text-cyan-400 font-bold">0</span></div>
+      <div class="w-px h-3 bg-slate-700"></div>
+      <div>VEL: <span id="ballSpeedDisplay" class="text-amber-400 font-bold">1.0x</span></div>
+    </div>
+
+    <!-- Controles táctiles en pantalla para móviles -->
+    <div id="touchZonesContainer" class="absolute inset-0 flex justify-between pointer-events-none md:hidden z-10 px-2 py-4">
+      <div class="w-24 h-full flex flex-col justify-between items-center opacity-40">
+        <div class="w-16 h-20 rounded-xl border border-dashed border-cyan-400 flex items-center justify-center text-cyan-400 text-xl font-bold bg-cyan-950/20">▲</div>
+        <span class="text-[10px] text-cyan-400 uppercase font-mono">Toca / Arrastra</span>
+        <div class="w-16 h-20 rounded-xl border border-dashed border-cyan-400 flex items-center justify-center text-cyan-400 text-xl font-bold bg-cyan-950/20">▼</div>
+      </div>
+      <div id="touchZoneP2" class="w-24 h-full flex flex-col justify-between items-center opacity-40 hidden">
+        <div class="w-16 h-20 rounded-xl border border-dashed border-pink-400 flex items-center justify-center text-pink-400 text-xl font-bold bg-pink-950/20">▲</div>
+        <span class="text-[10px] text-pink-400 uppercase font-mono">P2 Arrastra</span>
+        <div class="w-16 h-20 rounded-xl border border-dashed border-pink-400 flex items-center justify-center text-pink-400 text-xl font-bold bg-pink-950/20">▼</div>
+      </div>
+    </div>
+
+    <!-- Overlay de Pausa -->
+    <div id="pauseOverlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center gap-4 rounded-2xl hidden z-30">
+      <div class="text-center">
+        <h2 class="font-arcade text-3xl font-black text-cyan-400 neon-text-cyan tracking-widest mb-1">JUEGO EN PAUSA</h2>
+        <p class="text-slate-400 text-sm">Tómate un respiro</p>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-3 mt-4">
+        <button id="resumeBtn" class="cyber-btn px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold tracking-wider uppercase font-arcade rounded">
+          <i class="fa-solid fa-play mr-2"></i> Continuar
+        </button>
+        <button id="restartFromPauseBtn" class="cyber-btn px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold tracking-wider uppercase font-arcade border border-slate-700 rounded">
+          <i class="fa-solid fa-rotate-right mr-2"></i> Reiniciar
+        </button>
+      </div>
+    </div>
+
+    <!-- Overlay de Fin de Partida (Game Over / Victoria) -->
+    <div id="gameOverOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-lg flex flex-col items-center justify-center gap-4 rounded-2xl hidden z-30 px-6 text-center">
+      <div id="winnerCrown" class="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 text-3xl animate-bounce">
+        <i class="fa-solid fa-trophy"></i>
+      </div>
+      <div>
+        <h2 id="winnerText" class="font-arcade text-3xl sm:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-yellow-300 to-pink-500 tracking-wider">
+          ¡VICTORIA!
+        </h2>
+        <p id="winnerSubtext" class="text-slate-300 text-sm sm:text-base mt-1">El Jugador 1 domina la cancha</p>
+      </div>
+
+      <div class="flex items-center gap-8 py-3 px-6 bg-slate-900/60 rounded-xl border border-slate-800 my-2 font-mono text-sm">
+        <div class="text-center">
+          <div class="text-slate-400 text-xs">PUNTOS P1</div>
+          <div id="finalScoreP1" class="text-cyan-400 font-bold text-xl">0</div>
+        </div>
+        <div class="text-slate-600 text-xl font-bold">-</div>
+        <div class="text-center">
+          <div id="finalScoreP2Name" class="text-slate-400 text-xs">PUNTOS IA</div>
+          <div id="finalScoreP2" class="text-pink-400 font-bold text-xl">0</div>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button id="playAgainBtn" class="cyber-btn px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold tracking-wider uppercase font-arcade rounded">
+          <i class="fa-solid fa-rotate-left mr-2"></i> Revancha
+        </button>
+        <button id="openMenuFromGameOverBtn" class="cyber-btn px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold tracking-wider uppercase font-arcade border border-slate-700 rounded">
+          <i class="fa-solid fa-sliders mr-2"></i> Opciones
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal de Configuración y Modos -->
+    <div id="settingsModal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center rounded-2xl hidden z-40 p-4">
+      <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl flex flex-col gap-5">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h3 class="font-arcade text-lg font-bold text-cyan-400 flex items-center gap-2">
+            <i class="fa-solid fa-sliders"></i> Ajustes de Partida
+          </h3>
+          <button id="closeSettingsBtn" class="text-slate-400 hover:text-white transition">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <!-- Modo de Juego -->
+        <div>
+          <label class="text-xs uppercase font-semibold text-slate-400 block mb-2">Modo de Juego</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="mode1PBtn" class="mode-select-btn px-3 py-2.5 rounded-xl border border-cyan-500 bg-cyan-500/20 text-cyan-300 font-bold text-sm flex items-center justify-center gap-2 transition">
+              <i class="fa-solid fa-robot"></i> 1 Jugador (IA)
+            </button>
+            <button id="mode2PBtn" class="mode-select-btn px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 font-bold text-sm flex items-center justify-center gap-2 hover:border-pink-500/50 transition">
+              <i class="fa-solid fa-user-group"></i> 2 Jugadores
+            </button>
+          </div>
+        </div>
+
+        <!-- Dificultad de la IA (Solo para 1 Jugador) -->
+        <div id="difficultySection">
+          <label class="text-xs uppercase font-semibold text-slate-400 block mb-2">Dificultad de la IA</label>
+          <div class="grid grid-cols-4 gap-1.5 text-xs">
+            <button data-diff="easy" class="diff-btn py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-semibold hover:border-slate-500">Fácil</button>
+            <button data-diff="medium" class="diff-btn py-2 rounded-lg bg-cyan-500/20 border border-cyan-500 text-cyan-300 font-bold">Medio</button>
+            <button data-diff="hard" class="diff-btn py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-semibold hover:border-slate-500">Difícil</button>
+            <button data-diff="expert" class="diff-btn py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-semibold hover:border-slate-500">Cyber</button>
+          </div>
+        </div>
+
+        <!-- Puntos para ganar -->
+        <div>
+          <label class="text-xs uppercase font-semibold text-slate-400 block mb-2">Puntos para Ganar: <span id="targetScoreValue" class="text-cyan-400 font-bold">7</span></label>
+          <input id="scoreTargetRange" type="range" min="3" max="15" value="7" step="2" class="w-full accent-cyan-400 bg-slate-800 rounded-lg h-2 cursor-pointer">
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+            <span>3 (Rápido)</span>
+            <span>7 (Estándar)</span>
+            <span>15 (Torneo)</span>
+          </div>
+        </div>
+
+        <!-- Velocidad de Bola inicial -->
+        <div>
+          <label class="text-xs uppercase font-semibold text-slate-400 block mb-2">Velocidad Inicial</label>
+          <div class="grid grid-cols-3 gap-2 text-xs">
+            <button data-speed="normal" class="speed-btn py-2 rounded-lg bg-cyan-500/20 border border-cyan-500 text-cyan-300 font-bold">Normal</button>
+            <button data-speed="fast" class="speed-btn py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:border-slate-500">Rápido</button>
+            <button data-speed="turbo" class="speed-btn py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:border-slate-500">Turbo</button>
+          </div>
+        </div>
+
+        <button id="applySettingsBtn" class="cyber-btn w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold tracking-wider uppercase font-arcade rounded mt-2">
+          Aplicar y Reiniciar
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Barra de Instrucciones y Controles al pie -->
+  <footer class="w-full max-w-5xl px-3 py-2 bg-slate-900/60 backdrop-blur-sm rounded-xl border border-slate-800/80 text-slate-400 text-xs flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-4 flex-wrap">
+      <div class="flex items-center gap-1.5">
+        <span class="text-cyan-400 font-bold"><i class="fa-solid fa-gamepad"></i> J1:</span>
+        <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-[10px] font-mono text-slate-200">W</kbd>
+        <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-[10px] font-mono text-slate-200">S</kbd>
+        <span class="text-slate-500 text-[11px]">(o Arrastra el ratón / táctil)</span>
+      </div>
+      <div id="p2Instructions" class="hidden sm:flex items-center gap-1.5 text-slate-400">
+        <span class="text-pink-400 font-bold">J2:</span>
+        <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-[10px] font-mono text-slate-200">▲</kbd>
+        <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-[10px] font-mono text-slate-200">▼</kbd>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 text-slate-500 text-[11px]">
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-slate-300">Espacio</kbd> Pausa</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono text-slate-300">R</kbd> Reinicio</span>
+    </div>
+  </footer>
+
+  <!-- Código JavaScript del Juego -->
+  <script>
+    // Generador de audio procedural Web Audio API (cero dependencias externas y latencia ultra baja)
+    class SoundSynth {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      initContext() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playTone(freq, type = 'sine', duration = 0.08, gainVal = 0.2, pitchBend = 0) {
+        if (!this.enabled) return;
+        this.initContext();
+        if (!this.ctx) return;
+
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          if (pitchBend !== 0) {
+            osc.frequency.exponentialRampToValueAtTime(
+              Math.max(20, freq + pitchBend),
+              this.ctx.currentTime + duration
+            );
+          }
+
+          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {
+          // Fallback silencioso
+        }
+      }
+
+      hitPaddle(isPlayer2 = false) {
+        const baseFreq = isPlayer2 ? 460 : 380;
+        this.playTone(baseFreq, 'triangle', 0.09, 0.25, 80);
+      }
+
+      hitWall() {
+        this.playTone(220, 'square', 0.05, 0.12, -40);
+      }
+
+      scorePoint(isPlayer1 = true) {
+        if (!this.enabled) return;
+        this.initContext();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const freqs = isPlayer1 ? [330, 440, 660] : [280, 220, 160];
+        freqs.forEach((f, idx) => {
+          setTimeout(() => {
+            this.playTone(f, isPlayer1 ? 'triangle' : 'sawtooth', 0.14, 0.2);
+          }, idx * 75);
+        });
+      }
+
+      victory() {
+        if (!this.enabled) return;
+        const melody = [261.6, 329.6, 392.0, 523.2];
+        melody.forEach((f, i) => {
+          setTimeout(() => {
+            this.playTone(f, 'sine', 0.25, 0.3);
+          }, i * 120);
+        });
+      }
+    }
+
+    const sound = new SoundSynth();
+
+    const canvas = document.getElementById('pongCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Estado del juego
+    const STATE = {
+      MENU: 0,
+      PLAYING: 1,
+      PAUSED: 2,
+      GAMEOVER: 3
+    };
+
+    let gameState = STATE.PLAYING;
+    let gameMode = '1P'; // '1P' o '2P'
+    let aiDifficulty = 'medium'; // 'easy', 'medium', 'hard', 'expert'
+    let targetScore = 7;
+    let initialBallSpeedSetting = 'normal'; // 'normal', 'fast', 'turbo'
+
+    let scoreP1 = 0;
+    let scoreP2 = 0;
+    let rallyCount = 0;
+    let screenShake = 0;
+
+    // Dimensiones lógicas virtuales para asegurar consistencia
+    const V_WIDTH = 1200;
+    const V_HEIGHT = 675;
+
+    // Raquetas
+    const PADDLE_WIDTH = 16;
+    const PADDLE_HEIGHT = 110;
+    const PADDLE_SPEED = 9;
+
+    const player1 = {
+      x: 40,
+      y: V_HEIGHT / 2 - PADDLE_HEIGHT / 2,
+      width: PADDLE_WIDTH,
+      height: PADDLE_HEIGHT,
+      vy: 0,
+      speed: PADDLE_SPEED,
+      color: '#00f3ff',
+      glow: '#00f3ff',
+      targetY: null
+    };
+
+    const player2 = {
+      x: V_WIDTH - 40 - PADDLE_WIDTH,
+      y: V_HEIGHT / 2 - PADDLE_HEIGHT / 2,
+      width: PADDLE_WIDTH,
+      height: PADDLE_HEIGHT,
+      vy: 0,
+      speed: PADDLE_SPEED,
+      color: '#ff007f',
+      glow: '#ff007f',
+      targetY: null
+    };
+
+    // Parámetros de la pelota
+    const ball = {
+      x: V_WIDTH / 2,
+      y: V_HEIGHT / 2,
+      radius: 10,
+      vx: 6,
+      vy: 3,
+      speed: 7,
+      baseSpeed: 7,
+      maxSpeed: 20,
+      trail: [],
+      maxTrail: 12,
+      color: '#ffffff'
+    };
+
+    // Parámetros de la IA según dificultad
+    const AI_CONFIG = {
+      easy: { speedFactor: 0.60, reactionDelay: 0.22, errorMargin: 45 },
+      medium: { speedFactor: 0.85, reactionDelay: 0.12, errorMargin: 20 },
+      hard: { speedFactor: 1.05, reactionDelay: 0.04, errorMargin: 8 },
+      expert: { speedFactor: 1.25, reactionDelay: 0.00, errorMargin: 0 }
+    };
+
+    // Partículas y efectos visuales
+    let particles = [];
+
+    class Particle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 6 + 2;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.size = Math.random() * 4 + 2;
+        this.life = 1.0;
+        this.decay = Math.random() * 0.03 + 0.02;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vx *= 0.95;
+        this.vy *= 0.95;
+        this.life -= this.decay;
+      }
+      draw(context) {
+        if (this.life <= 0) return;
+        context.save();
+        context.globalAlpha = Math.max(0, this.life);
+        context.fillStyle = this.color;
+        context.shadowColor = this.color;
+        context.shadowBlur = 8;
+        context.beginPath();
+        context.arc(this.x, this.y, this.size * this.life, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+      }
+    }
+
+    function spawnSparks(x, y, color, count = 15) {
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, color));
+      }
+    }
+
+    function setBallBaseSpeed() {
+      if (initialBallSpeedSetting === 'normal') ball.baseSpeed = 7.5;
+      else if (initialBallSpeedSetting === 'fast') ball.baseSpeed = 9.5;
+      else if (initialBallSpeedSetting === 'turbo') ball.baseSpeed = 12;
+      ball.speed = ball.baseSpeed;
+    }
+
+    function resetBall(servingToPlayer1 = false) {
+      ball.x = V_WIDTH / 2;
+      ball.y = V_HEIGHT / 2;
+      ball.trail = [];
+      setBallBaseSpeed();
+
+      // Dirección con un ángulo aleatorio suave (evitar ángulos verticales directos)
+      const angle = (Math.random() * 0.6 - 0.3) * Math.PI; // -54° a +54° aprox
+      const direction = servingToPlayer1 ? -1 : 1;
+
+      ball.vx = Math.cos(angle) * ball.speed * direction;
+      ball.vy = Math.sin(angle) * ball.speed;
+
+      rallyCount = 0;
+      updateHud();
+    }
+
+    // Colisión de círculo con rectángulo rotado/alineado
+    function checkPaddleCollision(paddle) {
+      const closestX = Math.max(paddle.x, Math.min(ball.x, paddle.x + paddle.width));
+      const closestY = Math.max(paddle.y, Math.min(ball.y, paddle.y + paddle.height));
+      const distX = ball.x - closestX;
+      const distY = ball.y - closestY;
+      return (distX * distX + distY * distY) < (ball.radius * ball.radius);
+    }
+
+    function handlePaddleHit(paddle, isP1) {
+      // Calcular punto de impacto relativo (-1 arriba, 0 centro, 1 abajo)
+      const paddleCenter = paddle.y + paddle.height / 2;
+      const relativeIntersectY = (ball.y - paddleCenter) / (paddle.height / 2);
+      const clampedIntersect = Math.max(-1, Math.min(1, relativeIntersectY));
+
+      // Ángulo de rebote máximo de 60 grados (Pi / 3)
+      const maxBounceAngle = (5 * Math.PI) / 12;
+      const bounceAngle = clampedIntersect * maxBounceAngle;
+
+      // Incrementar velocidad gradualmente con el rally
+      rallyCount++;
+      ball.speed = Math.min(ball.maxSpeed, ball.baseSpeed + rallyCount * 0.4);
+
+      const direction = isP1 ? 1 : -1;
+      ball.vx = Math.cos(bounceAngle) * ball.speed * direction;
+      ball.vy = Math.sin(bounceAngle) * ball.speed;
+
+      // Desplazar fuera del paddle para evitar quedar atrapado
+      if (isP1) {
+        ball.x = paddle.x + paddle.width + ball.radius;
+      } else {
+        ball.x = paddle.x - ball.radius;
+      }
+
+      // Sonido y partículas
+      sound.hitPaddle(!isP1);
+      spawnSparks(ball.x, ball.y, paddle.color, 16);
+      screenShake = Math.min(8, 2 + rallyCount * 0.3);
+      updateHud();
+    }
+
+    const keys = {
+      KeyW: false,
+      KeyS: false,
+      ArrowUp: false,
+      ArrowDown: false
+    };
+
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) {
+        e.preventDefault();
+      }
+      if (keys.hasOwnProperty(e.code)) {
+        keys[e.code] = true;
+      }
+      if (e.code === 'Space') {
+        togglePause();
+      }
+      if (e.code === 'KeyR') {
+        restartGame();
+      }
+      if (e.code === 'KeyM') {
+        toggleSound();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (keys.hasOwnProperty(e.code)) {
+        keys[e.code] = false;
+      }
+    });
+
+    // Soporte para control con ratón en el lado izquierdo
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleY = V_HEIGHT / rect.height;
+      const mouseY = (e.clientY - rect.top) * scaleY;
+      player1.targetY = mouseY - player1.height / 2;
+    });
+
+    // Control táctil
+    function handleTouchMove(e) {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = V_WIDTH / rect.width;
+      const scaleY = V_HEIGHT / rect.height;
+
+      for (let i = 0; i < e.touches.length; i++) {
+        const touch = e.touches[i];
+        const touchX = (touch.clientX - rect.left) * scaleX;
+        const touchY = (touch.clientY - rect.top) * scaleY;
+
+        if (touchX < V_WIDTH / 2) {
+          player1.targetY = touchY - player1.height / 2;
+        } else if (gameMode === '2P') {
+          player2.targetY = touchY - player2.height / 2;
+        }
+      }
+    }
+
+    canvas.addEventListener('touchstart', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    function resizeCanvas() {
+      // Ajuste de resolución nítida para pantallas Retina
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      
+      ctx.resetTransform();
+      ctx.scale(canvas.width / V_WIDTH, canvas.height / V_HEIGHT);
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function updateHud() {
+      document.getElementById('scorePlayer1').textContent = scoreP1;
+      document.getElementById('scorePlayer2').textContent = scoreP2;
+      document.getElementById('rallyCount').textContent = rallyCount;
+      const speedMultiplier = (ball.speed / ball.baseSpeed).toFixed(1);
+      document.getElementById('ballSpeedDisplay').textContent = `${speedMultiplier}x`;
+    }
+
+    function drawTable() {
+      // Fondo sutil con cuadrícula de estilo retro
+      ctx.fillStyle = '#060a14';
+      ctx.fillRect(0, 0, V_WIDTH, V_HEIGHT);
+
+      // Líneas de rejilla cibernética tenues
+      ctx.strokeStyle = 'rgba(30, 41, 59, 0.4)';
+      ctx.lineWidth = 1;
+      const gridSize = 45;
+      for (let x = 0; x < V_WIDTH; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, V_HEIGHT);
+        ctx.stroke();
+      }
+      for (let y = 0; y < V_HEIGHT; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(V_WIDTH, y);
+        ctx.stroke();
+      }
+
+      // Red central luminosa
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([12, 16]);
+      ctx.beginPath();
+      ctx.moveTo(V_WIDTH / 2, 0);
+      ctx.lineTo(V_WIDTH / 2, V_HEIGHT);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Círculo central estético
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(V_WIDTH / 2, V_HEIGHT / 2, 80, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    function drawPaddles() {
+      // Raqueta Jugador 1 (Cyan)
+      ctx.save();
+      ctx.fillStyle = player1.color;
+      ctx.shadowColor = player1.glow;
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.roundRect(player1.x, player1.y, player1.width, player1.height, 8);
+      ctx.fill();
+
+      // Brillo interior
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(player1.x + 3, player1.y + 6, 2, player1.height - 12, 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Raqueta Jugador 2 / IA (Pink)
+      ctx.save();
+      ctx.fillStyle = player2.color;
+      ctx.shadowColor = player2.glow;
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.roundRect(player2.x, player2.y, player2.width, player2.height, 8);
+      ctx.fill();
+
+      // Brillo interior
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(player2.x + player2.width - 5, player2.y + 6, 2, player2.height - 12, 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBall() {
+      // Estela de la bola
+      for (let i = 0; i < ball.trail.length; i++) {
+        const point = ball.trail[i];
+        const progress = i / ball.trail.length;
+        ctx.save();
+        ctx.globalAlpha = progress * 0.45;
+        ctx.fillStyle = ball.vx > 0 ? '#38bdf8' : '#ec4899';
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, ball.radius * (0.4 + progress * 0.6), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Bola principal con resplandor intenso
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = ball.vx > 0 ? '#00f3ff' : '#ff007f';
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Núcleo blanco
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function updateAI() {
+      if (gameMode !== '1P') return;
+
+      const config = AI_CONFIG[aiDifficulty];
+      const targetCenter = player2.y + player2.height / 2;
+      
+      // La IA predice solo cuando la pelota se mueve hacia ella
+      let desiredY = V_HEIGHT / 2;
+      if (ball.vx > 0) {
+        // Añadir ligera oscilación o retraso según dificultad
+        desiredY = ball.y + (Math.sin(Date.now() / 300) * config.errorMargin);
+      }
+
+      const diff = desiredY - targetCenter;
+      const moveSpeed = player2.speed * config.speedFactor;
+
+      if (Math.abs(diff) > 8) {
+        if (diff > 0) {
+          player2.y += Math.min(diff, moveSpeed);
+        } else {
+          player2.y += Math.max(diff, -moveSpeed);
+        }
+      }
+
+      // Restricción dentro de la pantalla
+      player2.y = Math.max(10, Math.min(V_HEIGHT - player2.height - 10, player2.y));
+    }
+
+    function updatePlayers() {
+      // Control de Jugador 1 con Teclado
+      if (keys.KeyW) {
+        player1.y -= player1.speed;
+        player1.targetY = null;
+      } else if (keys.KeyS) {
+        player1.y += player1.speed;
+        player1.targetY = null;
+      } else if (player1.targetY !== null) {
+        // Interpolación suave hacia posición de ratón/toque
+        const dy = player1.targetY - player1.y;
+        player1.y += dy * 0.22;
+      }
+
+      // Control de Jugador 2 (si es 2P)
+      if (gameMode === '2P') {
+        if (keys.ArrowUp) {
+          player2.y -= player2.speed;
+          player2.targetY = null;
+        } else if (keys.ArrowDown) {
+          player2.y += player2.speed;
+          player2.targetY = null;
+        } else if (player2.targetY !== null) {
+          const dy = player2.targetY - player2.y;
+          player2.y += dy * 0.22;
+        }
+      }
+
+      // Limitar raquetas dentro de la mesa
+      player1.y = Math.max(10, Math.min(V_HEIGHT - player1.height - 10, player1.y));
+      player2.y = Math.max(10, Math.min(V_HEIGHT - player2.height - 10, player2.y));
+    }
+
+    function updatePhysics() {
+      // Actualizar estela de la bola
+      ball.trail.push({ x: ball.x, y: ball.y });
+      if (ball.trail.length > ball.maxTrail) {
+        ball.trail.shift();
+      }
+
+      // Movimiento de la bola
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      // Rebote contra paredes superior e inferior
+      if (ball.y - ball.radius <= 0) {
+        ball.y = ball.radius;
+        ball.vy = -ball.vy;
+        sound.hitWall();
+        spawnSparks(ball.x, ball.y, '#94a3b8', 6);
+      } else if (ball.y + ball.radius >= V_HEIGHT) {
+        ball.y = V_HEIGHT - ball.radius;
+        ball.vy = -ball.vy;
+        sound.hitWall();
+        spawnSparks(ball.x, ball.y, '#94a3b8', 6);
+      }
+
+      // Colisiones con Raquetas
+      if (ball.vx < 0 && checkPaddleCollision(player1)) {
+        handlePaddleHit(player1, true);
+      } else if (ball.vx > 0 && checkPaddleCollision(player2)) {
+        handlePaddleHit(player2, false);
+      }
+
+      // Anotación de Puntos
+      if (ball.x + ball.radius < 0) {
+        // Punto para Jugador 2 / IA
+        scoreP2++;
+        sound.scorePoint(false);
+        checkMatchWinner();
+        if (gameState !== STATE.GAMEOVER) {
+          resetBall(false);
+        }
+      } else if (ball.x - ball.radius > V_WIDTH) {
+        // Punto para Jugador 1
+        scoreP1++;
+        sound.scorePoint(true);
+        checkMatchWinner();
+        if (gameState !== STATE.GAMEOVER) {
+          resetBall(true);
+        }
+      }
+
+      // Actualizar partículas
+      for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        if (particles[i].life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+
+      // Reducción del temblor de pantalla
+      if (screenShake > 0) {
+        screenShake *= 0.9;
+        if (screenShake < 0.2) screenShake = 0;
+      }
+    }
+
+    function checkMatchWinner() {
+      updateHud();
+      if (scoreP1 >= targetScore || scoreP2 >= targetScore) {
+        gameState = STATE.GAMEOVER;
+        sound.victory();
+
+        const isP1Winner = scoreP1 >= targetScore;
+        const winnerTitle = document.getElementById('winnerText');
+        const winnerSubtext = document.getElementById('winnerSubtext');
+
+        if (isP1Winner) {
+          winnerTitle.textContent = "¡JUGADOR 1 GANA!";
+          winnerTitle.className = "font-arcade text-3xl sm:text-4xl font-black text-cyan-400 neon-text-cyan tracking-wider";
+          winnerSubtext.textContent = gameMode === '1P' ? "¡Has derrotado a la inteligencia artificial!" : "¡Victoria legendaria para el Jugador 1!";
+        } else {
+          winnerTitle.textContent = gameMode === '1P' ? "¡LA IA GANA!" : "¡JUGADOR 2 GANA!";
+          winnerTitle.className = "font-arcade text-3xl sm:text-4xl font-black text-pink-500 neon-text-pink tracking-wider";
+          winnerSubtext.textContent = gameMode === '1P' ? "Sigue practicando, las máquinas no perdonan..." : "¡Victoria contundente para el Jugador 2!";
+        }
+
+        document.getElementById('finalScoreP1').textContent = scoreP1;
+        document.getElementById('finalScoreP2').textContent = scoreP2;
+        document.getElementById('finalScoreP2Name').textContent = gameMode === '1P' ? 'PUNTOS IA' : 'PUNTOS J2';
+        document.getElementById('gameOverOverlay').classList.remove('hidden');
+      }
+    }
+
+    function gameLoop() {
+      if (gameState === STATE.PLAYING) {
+        updatePlayers();
+        updateAI();
+        updatePhysics();
+      }
+
+      // Renderizado
+      ctx.save();
+      if (screenShake > 0) {
+        const sx = (Math.random() - 0.5) * screenShake * 2;
+        const sy = (Math.random() - 0.5) * screenShake * 2;
+        ctx.translate(sx, sy);
+      }
+
+      drawTable();
+      drawPaddles();
+      drawBall();
+
+      // Dibujar partículas
+      particles.forEach(p => p.draw(ctx));
+      ctx.restore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Controles de interfaz y modales
+    function togglePause() {
+      if (gameState === STATE.GAMEOVER) return;
+
+      if (gameState === STATE.PLAYING) {
+        gameState = STATE.PAUSED;
+        document.getElementById('pauseOverlay').classList.remove('hidden');
+        document.getElementById('pauseIcon').className = 'fa-solid fa-play text-sm';
+      } else if (gameState === STATE.PAUSED) {
+        gameState = STATE.PLAYING;
+        document.getElementById('pauseOverlay').classList.add('hidden');
+        document.getElementById('pauseIcon').className = 'fa-solid fa-pause text-sm';
+      }
+    }
+
+    function restartGame() {
+      scoreP1 = 0;
+      scoreP2 = 0;
+      rallyCount = 0;
+      gameState = STATE.PLAYING;
+      document.getElementById('pauseOverlay').classList.add('hidden');
+      document.getElementById('gameOverOverlay').classList.add('hidden');
+      document.getElementById('pauseIcon').className = 'fa-solid fa-pause text-sm';
+      resetBall(Math.random() > 0.5);
+      updateHud();
+    }
+
+    function toggleSound() {
+      sound.enabled = !sound.enabled;
+      const icon = document.getElementById('soundIcon');
+      if (sound.enabled) {
+        icon.className = 'fa-solid fa-volume-high text-sm';
+        sound.hitPaddle(false);
+      } else {
+        icon.className = 'fa-solid fa-volume-xmark text-sm';
+      }
+    }
+
+    // Inicialización y configuración de UI
+    document.getElementById('pauseToggleBtn').addEventListener('click', togglePause);
+    document.getElementById('resumeBtn').addEventListener('click', togglePause);
+    document.getElementById('restartFromPauseBtn').addEventListener('click', restartGame);
+    document.getElementById('playAgainBtn').addEventListener('click', restartGame);
+    document.getElementById('soundToggleBtn').addEventListener('click', toggleSound);
+
+    const settingsModal = document.getElementById('settingsModal');
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      if (gameState === STATE.PLAYING) togglePause();
+      settingsModal.classList.remove('hidden');
+    });
+
+    document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+    });
+
+    document.getElementById('openMenuFromGameOverBtn').addEventListener('click', () => {
+      document.getElementById('gameOverOverlay').classList.add('hidden');
+      settingsModal.classList.remove('hidden');
+    });
+
+    // Selector de Modo (1P vs 2P)
+    const mode1PBtn = document.getElementById('mode1PBtn');
+    const mode2PBtn = document.getElementById('mode2PBtn');
+    const diffSection = document.getElementById('difficultySection');
+    const p2Instructions = document.getElementById('p2Instructions');
+    const touchZoneP2 = document.getElementById('touchZoneP2');
+
+    mode1PBtn.addEventListener('click', () => {
+      gameMode = '1P';
+      mode1PBtn.className = 'mode-select-btn px-3 py-2.5 rounded-xl border border-cyan-500 bg-cyan-500/20 text-cyan-300 font-bold text-sm flex items-center justify-center gap-2 transition';
+      mode2PBtn.className = 'mode-select-btn px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 font-bold text-sm flex items-center justify-center gap-2 hover:border-pink-500/50 transition';
+      diffSection.classList.remove('hidden');
+      p2Instructions.classList.add('hidden');
+      touchZoneP2.classList.add('hidden');
+      document.getElementById('scorePlayer2Label').textContent = 'IA';
+      document.getElementById('currentModeLabel').textContent = '1J vs IA';
+    });
+
+    mode2PBtn.addEventListener('click', () => {
+      gameMode = '2P';
+      mode2PBtn.className = 'mode-select-btn px-3 py-2.5 rounded-xl border border-pink-500 bg-pink-500/20 text-pink-300 font-bold text-sm flex items-center justify-center gap-2 transition';
+      mode1PBtn.className = 'mode-select-btn px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 font-bold text-sm flex items-center justify-center gap-2 hover:border-cyan-500/50 transition';
+      diffSection.classList.add('hidden');
+      p2Instructions.classList.remove('hidden');
+      touchZoneP2.classList.remove('hidden');
+      document.getElementById('scorePlayer2Label').textContent = 'J2';
+      document.getElementById('currentModeLabel').textContent = '2 Jugadores';
+    });
+
+    // Selector de Dificultad
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.diff-btn').forEach(b => {
+          b.className = 'diff-btn py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-semibold hover:border-slate-500';
+        });
+        btn.className = 'diff-btn py-2 rounded-lg bg-cyan-500/20 border border-cyan-500 text-cyan-300 font-bold';
+        aiDifficulty = btn.getAttribute('data-diff');
+      });
+    });
+
+    // Selector de Velocidad Inicial
+    document.querySelectorAll('.speed-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.speed-btn').forEach(b => {
+          b.className = 'speed-btn py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:border-slate-500';
+        });
+        btn.className = 'speed-btn py-2 rounded-lg bg-cyan-500/20 border border-cyan-500 text-cyan-300 font-bold';
+        initialBallSpeedSetting = btn.getAttribute('data-speed');
+      });
+    });
+
+    // Slider de Puntos para Ganar
+    const scoreRange = document.getElementById('scoreTargetRange');
+    const scoreVal = document.getElementById('targetScoreValue');
+    scoreRange.addEventListener('input', (e) => {
+      scoreVal.textContent = e.target.value;
+      targetScore = parseInt(e.target.value, 10);
+      document.getElementById('targetScoreDisplay').textContent = `A ${targetScore} Puntos`;
+    });
+
+    document.getElementById('applySettingsBtn').addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+      restartGame();
+    });
+
+    // Iniciar bucle de juego una vez cargada la ventana
+    window.onload = function() {
+      resizeCanvas();
+      setBallBaseSpeed();
+      resetBall(false);
+      updateHud();
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
