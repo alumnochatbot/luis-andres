@@ -77,32 +77,32 @@
 <body class="w-screen h-screen flex flex-col items-center justify-between select-none overflow-hidden text-amber-100">
 
     <!-- TOP HUD BAR -->
-    <header class="w-full max-w-5xl px-3 py-2 flex items-center justify-between stone-panel rounded-b-2xl z-20 shrink-0">
+    <header class="w-full max-w-5xl px-3 py-2 flex items-center justify-between stone-panel rounded-b-2xl z-20 shrink-0 border-red-700">
         <!-- Left: Lives & Level -->
         <div class="flex items-center gap-3 sm:gap-5">
-            <div class="flex items-center gap-1.5 bg-black/40 px-3 py-1 rounded-xl border border-amber-700/50">
-                <span class="text-xs sm:text-sm text-amber-400 uppercase tracking-wider font-bold">Templo</span>
+            <div class="flex items-center gap-1.5 bg-red-950/70 px-3 py-1 rounded-xl border border-red-500/70">
+                <span class="text-xs sm:text-sm text-red-400 uppercase tracking-wider font-bold">Infierno</span>
                 <span id="hud-level" class="text-lg sm:text-xl font-extrabold text-yellow-300">1-1</span>
             </div>
 
-            <!-- Lives (Golden Frogs) -->
-            <div class="flex items-center gap-1 bg-black/40 px-2.5 py-1 rounded-xl border border-amber-700/50" title="Vidas restantes">
-                <span id="hud-lives" class="flex items-center gap-1 text-base sm:text-lg">
-                    🐸🐸🐸
+            <!-- Lives (Sudden Death) -->
+            <div class="flex items-center gap-1 bg-black/60 px-2.5 py-1 rounded-xl border border-red-700/60" title="Modo Muerte Súbita">
+                <span id="hud-lives" class="flex items-center gap-1 text-base sm:text-lg font-black text-red-400">
+                    💀 x1
                 </span>
             </div>
         </div>
 
         <!-- Center: ZUMA SUN METER -->
         <div class="flex flex-col items-center flex-1 max-w-xs mx-2">
-            <div class="flex justify-between w-full text-[11px] font-bold tracking-widest text-amber-300 mb-0.5 px-1">
-                <span>BARRA SOLAR</span>
+            <div class="flex justify-between w-full text-[11px] font-bold tracking-widest text-red-300 mb-0.5 px-1">
+                <span>BARRA APOCALIPSIS</span>
                 <span id="zuma-pct-label">0%</span>
             </div>
-            <div class="w-full h-4 bg-stone-950 rounded-full p-0.5 border-2 border-amber-600/80 relative overflow-hidden shadow-inner">
-                <div id="zuma-bar-fill" class="h-full rounded-full transition-all duration-200 bg-gradient-to-r from-amber-600 via-yellow-400 to-lime-300" style="width: 0%"></div>
+            <div class="w-full h-4 bg-stone-950 rounded-full p-0.5 border-2 border-red-600/90 relative overflow-hidden shadow-inner">
+                <div id="zuma-bar-fill" class="h-full rounded-full transition-all duration-200 bg-gradient-to-r from-red-700 via-orange-500 to-yellow-300" style="width: 0%"></div>
                 <div id="zuma-bar-text" class="hidden absolute inset-0 flex items-center justify-center text-[10px] font-black text-stone-950 tracking-widest">
-                    ¡ZUMA! ¡CAMINO CERRADO!
+                    ¡ZUMA! ¡MILAGRO IMPOSIBLE!
                 </div>
             </div>
         </div>
@@ -134,57 +134,60 @@
         <canvas id="gameCanvas" class="rounded-2xl shadow-2xl border-2 border-amber-900/60"></canvas>
 
         <!-- START / MENU OVERLAY -->
-        <div id="menu-overlay" class="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-30 p-4">
-            <div class="stone-panel max-w-lg w-full rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden border-4 border-amber-600">
+        <div id="menu-overlay" class="absolute inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-30 p-4">
+            <div class="stone-panel max-w-lg w-full rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden border-4 border-red-600 shadow-[0_0_50px_rgba(220,38,38,0.5)]">
                 <!-- Decorative Aztec Corner Ornaments -->
-                <div class="absolute top-2 left-2 w-6 h-6 border-t-4 border-l-4 border-yellow-400/60"></div>
-                <div class="absolute top-2 right-2 w-6 h-6 border-t-4 border-r-4 border-yellow-400/60"></div>
-                <div class="absolute bottom-2 left-2 w-6 h-6 border-b-4 border-l-4 border-yellow-400/60"></div>
-                <div class="absolute bottom-2 right-2 w-6 h-6 border-b-4 border-r-4 border-yellow-400/60"></div>
+                <div class="absolute top-2 left-2 w-6 h-6 border-t-4 border-l-4 border-red-500/80"></div>
+                <div class="absolute top-2 right-2 w-6 h-6 border-t-4 border-r-4 border-red-500/80"></div>
+                <div class="absolute bottom-2 left-2 w-6 h-6 border-b-4 border-l-4 border-red-500/80"></div>
+                <div class="absolute bottom-2 right-2 w-6 h-6 border-b-4 border-r-4 border-red-500/80"></div>
 
+                <div class="inline-block bg-red-900/90 border border-red-400 text-red-100 text-[11px] font-black px-3 py-0.5 rounded-full tracking-widest uppercase mb-1 animate-pulse">
+                    🔥 DIFICULTAD 10¹⁰⁰⁰ - MODO DIOS DEL CAOS 🔥
+                </div>
                 <h1 class="zuma-title text-5xl sm:text-6xl mb-0 leading-none select-none">ZUMA</h1>
-                <h2 class="deluxe-subtitle aztec-font text-2xl sm:text-3xl font-black tracking-widest mb-4 -mt-1">DELUXE</h2>
+                <h2 class="deluxe-subtitle aztec-font text-2xl sm:text-3xl font-black tracking-widest mb-3 -mt-1">APOCALIPSIS</h2>
 
                 <!-- Animated SVG Mini Preview of Frog & Sun Beam -->
-                <div class="relative mx-auto w-28 h-28 mb-4 rounded-full bg-stone-900 border-4 border-amber-500 flex items-center justify-center shadow-inner overflow-hidden">
-                    <div class="absolute w-32 h-8 bg-gradient-to-r from-yellow-300/80 to-transparent rotate-45 translate-x-6 translate-y-6 blur-sm"></div>
-                    <span class="text-6xl filter drop-shadow-lg">🐸</span>
+                <div class="relative mx-auto w-24 h-24 mb-3 rounded-full bg-stone-950 border-4 border-red-600 flex items-center justify-center shadow-inner overflow-hidden">
+                    <div class="absolute w-32 h-8 bg-gradient-to-r from-red-500/80 to-transparent rotate-45 translate-x-6 translate-y-6 blur-sm"></div>
+                    <span class="text-5xl filter drop-shadow-lg">🐸</span>
                 </div>
 
-                <p class="text-amber-200/90 text-sm sm:text-base mb-5 leading-relaxed">
-                    Dispara esferas ancestrales para unir <strong>3 o más del mismo color</strong> antes de que lleguen a la <strong>Calavera Dorada</strong>. ¡Crea reacciones en cadena y llena la Barra Solar para gritar <strong>ZUMA</strong>!
+                <p class="text-red-200/95 text-xs sm:text-sm mb-4 leading-relaxed">
+                    <strong>¡ADVERTENCIA EXTREMA!</strong> 9 colores simultáneos, velocidad supersónica, <strong>0 esferas agrupadas al nacer</strong>, <strong>Esferas Camaleón (🔄)</strong> que mutan de color, <strong>Esferas Blindadas (🛡️)</strong> que requieren 2 impactos, tirones gravitacionales de la Calavera y <strong>1 sola vida</strong>.
                 </p>
 
                 <!-- Level Selector -->
-                <div class="mb-6">
-                    <div class="text-xs uppercase tracking-widest text-amber-400 font-bold mb-2">Selecciona el Santuario</div>
+                <div class="mb-5">
+                    <div class="text-xs uppercase tracking-widest text-red-400 font-bold mb-2">Selecciona tu Tortura</div>
                     <div class="grid grid-cols-3 gap-2">
-                        <button data-level="0" class="lvl-select-btn py-2 px-2 rounded-xl border-2 border-yellow-400 bg-amber-900/70 text-yellow-200 font-bold text-xs sm:text-sm shadow">
-                            1. Espiral Solar
+                        <button data-level="0" class="lvl-select-btn py-2 px-2 rounded-xl border-2 border-red-400 bg-red-950/80 text-yellow-200 font-bold text-xs sm:text-sm shadow">
+                            1. Espiral Infernal
                         </button>
                         <button data-level="1" class="lvl-select-btn py-2 px-2 rounded-xl border-2 border-amber-700/60 bg-stone-800/80 text-amber-300/80 font-bold text-xs sm:text-sm">
-                            2. Serpiente Emplumada
+                            2. Víbora Letal
                         </button>
                         <button data-level="2" class="lvl-select-btn py-2 px-2 rounded-xl border-2 border-amber-700/60 bg-stone-800/80 text-amber-300/80 font-bold text-xs sm:text-sm">
-                            3. Altar del Eclipse
+                            3. Eclipse Imposible
                         </button>
                     </div>
                 </div>
 
                 <!-- Controls Info -->
-                <div class="grid grid-cols-2 gap-2 text-left bg-black/40 p-3 rounded-xl border border-amber-800/60 text-xs text-amber-200 mb-6">
+                <div class="grid grid-cols-2 gap-2 text-left bg-black/50 p-3 rounded-xl border border-red-800/60 text-xs text-amber-200 mb-5">
                     <div class="flex items-center gap-2">
-                        <span class="text-lg">🎯</span>
-                        <span><strong>Clic / Toque:</strong> Apuntar y disparar esfera</span>
+                        <span class="text-lg">🛡️</span>
+                        <span><strong>Blindadas:</strong> Dispara 1 vez para romper su escudo</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="text-lg">🔄</span>
-                        <span><strong>Clic Derecho / Espacio:</strong> Alternar color</span>
+                        <span class="text-lg">🦎</span>
+                        <span><strong>Camaleón:</strong> Cambian de color cada 2.2 seg</span>
                     </div>
                 </div>
 
                 <button id="btn-start-game" class="stone-btn w-full py-3.5 rounded-2xl text-xl font-black tracking-wider text-yellow-100 uppercase">
-                    ¡Jugar Ahora!
+                    ¡Aceptar el Reto Imposible!
                 </button>
             </div>
         </div>
@@ -220,16 +223,16 @@
     </main>
 
     <!-- BOTTOM POWERUP LEGEND BAR -->
-    <footer class="w-full max-w-5xl px-4 py-1.5 stone-panel rounded-t-2xl flex flex-wrap items-center justify-between text-xs text-amber-300/90 z-20 shrink-0">
-        <div class="flex items-center gap-4 mx-auto sm:mx-0">
-            <span class="font-bold text-yellow-400 uppercase tracking-wider hidden sm:inline">Poderes Ancestrales:</span>
-            <span class="flex items-center gap-1"><b class="text-red-400">💣 Bomba:</b> Explosión de área</span>
-            <span class="flex items-center gap-1"><b class="text-cyan-300">⏳ Hielo:</b> Ralentiza</span>
-            <span class="flex items-center gap-1"><b class="text-lime-400">⏪ Reversa:</b> Retrocede fila</span>
-            <span class="flex items-center gap-1"><b class="text-yellow-300">☀️ Rayo Solar:</b> Láser guía</span>
+    <footer class="w-full max-w-5xl px-4 py-1.5 stone-panel rounded-t-2xl flex flex-wrap items-center justify-between text-xs text-amber-300/90 z-20 shrink-0 border-red-800">
+        <div class="flex items-center gap-3 mx-auto sm:mx-0">
+            <span class="font-bold text-red-400 uppercase tracking-wider hidden sm:inline">Amenazas:</span>
+            <span class="flex items-center gap-1"><b class="text-fuchsia-400">🦎 Camaleón:</b> Muta de color</span>
+            <span class="flex items-center gap-1"><b class="text-stone-300">🛡️ Blindada:</b> Requiere 2 tiros</span>
+            <span class="flex items-center gap-1"><b class="text-red-500">💀 Succión:</b> Acelerones cada 5s</span>
+            <span class="flex items-center gap-1"><b class="text-yellow-300">🚫 Sin Mira:</b> Apunta a puro pulso</span>
         </div>
-        <div class="hidden md:block text-amber-400/70 italic">
-            Consejo: Toca la Rana o presiona [ESPACIO] para intercambiar esferas
+        <div class="hidden md:block text-red-400 font-bold">
+            MODO PESADILLA EXTREMA ACTIVADO
         </div>
     </footer>
 
@@ -379,16 +382,20 @@
         // --- CONSTANTS & CONFIG ---
         const LOGICAL_WIDTH = 900;
         const LOGICAL_HEIGHT = 620;
-        const MARBLE_RADIUS = 17;
-        const MARBLE_DIAMETER = MARBLE_RADIUS * 2; // 34px
+        const MARBLE_RADIUS = 16;
+        const MARBLE_DIAMETER = MARBLE_RADIUS * 2; // 32px
 
+        // 9 DISTINCT COLORS FOR EXTREME DIFFICULTY
         const MARBLE_TYPES = [
-            { id: 'red',    fill: '#ef4444', dark: '#7f1d1d', light: '#fca5a5', glyph: '☀️' },
-            { id: 'blue',   fill: '#3b82f6', dark: '#1e3a8a', light: '#93c5fd', glyph: '🌊' },
-            { id: 'yellow', fill: '#eab308', dark: '#713f12', light: '#fef08a', glyph: '⚡' },
-            { id: 'green',  fill: '#22c55e', dark: '#14532d', light: '#86efac', glyph: '🌿' },
-            { id: 'purple', fill: '#a855f7', dark: '#581c87', light: '#d8b4fe', glyph: '🌙' },
-            { id: 'white',  fill: '#e7e5e4', dark: '#57534e', light: '#ffffff', glyph: '💎' }
+            { id: 'red',     fill: '#ef4444', dark: '#7f1d1d', light: '#fca5a5', glyph: '☀️' },
+            { id: 'blue',    fill: '#3b82f6', dark: '#1e3a8a', light: '#93c5fd', glyph: '🌊' },
+            { id: 'yellow',  fill: '#eab308', dark: '#713f12', light: '#fef08a', glyph: '⚡' },
+            { id: 'green',   fill: '#22c55e', dark: '#14532d', light: '#86efac', glyph: '🌿' },
+            { id: 'purple',  fill: '#a855f7', dark: '#581c87', light: '#d8b4fe', glyph: '🌙' },
+            { id: 'white',   fill: '#e7e5e4', dark: '#44403c', light: '#ffffff', glyph: '💎' },
+            { id: 'cyan',    fill: '#06b6d4', dark: '#164e63', light: '#a5f3fc', glyph: '❄️' },
+            { id: 'orange',  fill: '#f97316', dark: '#7c2d12', light: '#fdba74', glyph: '🔥' },
+            { id: 'magenta', fill: '#ec4899', dark: '#831843', light: '#f9a8d4', glyph: '🔮' }
         ];
 
         const POWERUPS = ['bomb', 'slow', 'reverse', 'laser'];
@@ -396,10 +403,10 @@
         // --- LEVEL DEFINITIONS (Procedural High-Res Arc-Length Paths) ---
         const LEVELS = [
             {
-                name: "1-1 Espiral del Sol",
-                colorsCount: 4,
-                zumaTarget: 1000,
-                baseSpeed: 42, // pixels per second
+                name: "1-1 Espiral Infernal",
+                colorsCount: 8,
+                zumaTarget: 7500,
+                baseSpeed: 138, // Blistering fast speed!
                 frogPos: { x: 450, y: 315 },
                 buildRawPoints: () => {
                     // Classic Zuma Oval Spiral around the center frog
@@ -421,10 +428,10 @@
                 }
             },
             {
-                name: "2-1 Serpiente Emplumada",
-                colorsCount: 5,
-                zumaTarget: 1400,
-                baseSpeed: 48,
+                name: "2-1 Víbora Letal",
+                colorsCount: 9,
+                zumaTarget: 12000,
+                baseSpeed: 168,
                 frogPos: { x: 450, y: 335 },
                 buildRawPoints: () => {
                     // Outer temple wrap + sinuous wave around the frog
@@ -446,10 +453,10 @@
                 }
             },
             {
-                name: "3-1 Altar del Eclipse",
-                colorsCount: 6,
-                zumaTarget: 1800,
-                baseSpeed: 54,
+                name: "3-1 Eclipse Imposible",
+                colorsCount: 9,
+                zumaTarget: 18000,
+                baseSpeed: 205,
                 frogPos: { x: 450, y: 310 },
                 buildRawPoints: () => {
                     // Double-looped Aztec Diamond/Rounded Fortress Track
@@ -461,7 +468,6 @@
                         const shrink = 1 - t * 0.58;
                         const rx = 400 * shrink;
                         const ry = 270 * shrink;
-                        // Slight squircle harmonic for carved temple look
                         const x = 450 + (Math.cos(theta) + 0.08 * Math.cos(3 * theta)) * rx;
                         const y = 310 + (Math.sin(theta) - 0.08 * Math.sin(3 * theta)) * ry;
                         pts.push({ x, y });
@@ -712,7 +718,8 @@
 
         function randomColor(avoidColor = null) {
             const pool = getAvailableColors();
-            if (pool.length > 1 && avoidColor && Math.random() < 0.65) {
+            // EXTREME ANTI-CLUMPING: 99% chance to NEVER give the same color twice in a row on the track!
+            if (pool.length > 1 && avoidColor && Math.random() < 0.99) {
                 const others = pool.filter(c => c !== avoidColor);
                 return others[Math.floor(Math.random() * others.length)];
             }
@@ -720,13 +727,17 @@
         }
 
         // --- START / LOAD LEVEL ---
+        let skullSurgeTimer = 5.0;
+        let skullSurgeActive = 0;
+        let chameleonTimer = 2.2;
+
         function initLevel(levelIndex, resetScore = false) {
             currentLevelIdx = levelIndex % LEVELS.length;
             const lvl = LEVELS[currentLevelIdx];
 
             if (resetScore) {
                 score = 0;
-                lives = 3;
+                lives = 1; // SUDDEN DEATH: Only 1 life!
             }
 
             track = new TrackPath(lvl.buildRawPoints());
@@ -747,14 +758,14 @@
             slowTimer = 0;
             reverseTimer = 0;
             laserTimer = 0;
+            skullSurgeTimer = 4.5;
+            skullSurgeActive = 0;
+            chameleonTimer = 2.2;
 
-            // Spawn initial burst of 22 marbles emerging from tunnel
+            // Spawn massive initial wave of 42 strictly alternating marbles with armored & chameleon traps!
             let lastCol = null;
-            for (let i = 0; i < 22; i++) {
-                // Keep clumps of 1-2 same color so board isn't chaotic, but never 3 in a row initially
-                const color = (i % 2 === 1 && Math.random() < 0.45 && lastCol)
-                    ? lastCol
-                    : randomColor(lastCol);
+            for (let i = 0; i < 42; i++) {
+                const color = randomColor(lastCol);
                 lastCol = color;
                 marbles.push({
                     id: marbleIdCounter++,
@@ -763,7 +774,9 @@
                     powerup: null,
                     vel: 0,
                     attracting: false,
-                    comboStep: 0
+                    comboStep: 0,
+                    armored: (i % 5 === 3),      // Every 5th marble has Obsidian Armor!
+                    chameleon: (i % 6 === 2)     // Every 6th marble mutates color periodically!
                 });
             }
 
@@ -779,7 +792,7 @@
         function updateHUD() {
             document.getElementById('hud-level').textContent = `${currentLevelIdx + 1}-1`;
             document.getElementById('hud-score').textContent = score.toLocaleString();
-            document.getElementById('hud-lives').textContent = '🐸'.repeat(Math.max(0, lives)) || '💀';
+            document.getElementById('hud-lives').textContent = lives > 0 ? `💀 x${lives}` : '☠️ 0';
 
             const lvl = LEVELS[currentLevelIdx];
             const pct = Math.min(100, Math.floor((zumaProgress / lvl.zumaTarget) * 100));
@@ -830,17 +843,20 @@
             sfx.init();
             sfx.playShoot();
 
-            const speed = laserTimer > 0 ? 880 : 680;
+            // Subtle tremor curse on aim angle to demand superhuman control!
+            const tremor = laserTimer > 0 ? 0 : (Math.random() - 0.5) * 0.065;
+            const shotAngle = frog.angle + tremor;
+            const speed = laserTimer > 0 ? 960 : 760;
             const muzzleDist = 34;
             bullets.push({
-                x: frog.x + Math.cos(frog.angle) * muzzleDist,
-                y: frog.y + Math.sin(frog.angle) * muzzleDist,
-                vx: Math.cos(frog.angle) * speed,
-                vy: Math.sin(frog.angle) * speed,
+                x: frog.x + Math.cos(shotAngle) * muzzleDist,
+                y: frog.y + Math.sin(shotAngle) * muzzleDist,
+                vx: Math.cos(shotAngle) * speed,
+                vy: Math.sin(shotAngle) * speed,
                 color: frog.currentColor
             });
 
-            frog.recoil = 12;
+            frog.recoil = 14;
             frog.currentColor = frog.nextColor;
             frog.nextColor = randomColor(frog.currentColor);
         }
@@ -886,17 +902,17 @@
                 if (m.powerup === 'bomb') {
                     bombCenterDist = m.dist;
                 } else if (m.powerup === 'slow') {
-                    slowTimer = 7.0;
+                    slowTimer = 2.0; // Much shorter in extreme mode!
                     const pt = track.getPointAtDist(m.dist);
-                    addFloatingText(pt.x, pt.y - 18, '¡TIEMPO LENTO! ⏳', '#67e8f9', 24);
+                    addFloatingText(pt.x, pt.y - 18, '¡FRENO BREVE! ⏳', '#67e8f9', 22);
                 } else if (m.powerup === 'reverse') {
-                    reverseTimer = 3.2;
+                    reverseTimer = 1.1; // Micro pushback
                     const pt = track.getPointAtDist(m.dist);
-                    addFloatingText(pt.x, pt.y - 18, '¡REVERSA! ⏪', '#a3e635', 24);
+                    addFloatingText(pt.x, pt.y - 18, '¡MICRO REVERSA! ⏪', '#a3e635', 22);
                 } else if (m.powerup === 'laser') {
-                    laserTimer = 9.0;
+                    laserTimer = 3.5;
                     const pt = track.getPointAtDist(m.dist);
-                    addFloatingText(pt.x, pt.y - 18, '¡RAYO SOLAR! ☀️', '#fde047', 24);
+                    addFloatingText(pt.x, pt.y - 18, '¡RAYO SOLAR! ☀️', '#fde047', 22);
                 }
             });
 
@@ -970,6 +986,15 @@
             const hitMarble = marbles[hitIndex];
             const hitPt = track.getPointAtDist(hitMarble.dist);
 
+            // EXTREME MECHANIC: If hitting an Armored Obsidian marble directly, crack its armor & bounce/destroy the bullet!
+            if (hitMarble.armored) {
+                hitMarble.armored = false;
+                sfx.playBomb();
+                spawnExplosion(hitPt.x, hitPt.y, '#a8a29e', 14);
+                addFloatingText(hitPt.x, hitPt.y - 14, '¡ESCUDO ROTO! 🛡️', '#e7e5e4', 18);
+                return;
+            }
+
             // Project vector from hit marble to bullet onto the track tangent to see if it hit front or back
             const tangentX = Math.cos(hitPt.angle);
             const tangentY = Math.sin(hitPt.angle);
@@ -990,7 +1015,9 @@
                 powerup: null,
                 vel: 0,
                 attracting: false,
-                comboStep: 1
+                comboStep: 1,
+                armored: false,
+                chameleon: false
             };
 
             marbles.splice(insertIdx, 0, newMarble);
@@ -1024,10 +1051,39 @@
             if (laserTimer > 0) laserTimer = Math.max(0, laserTimer - dt);
             if (frog.recoil > 0) frog.recoil = Math.max(0, frog.recoil - dt * 65);
 
-            // Spawn occasional power-up on random marble
+            // EXTREME HAZARD 1: CHAMELEON MARBLES MUTATE COLOR EVERY 2.2 SECONDS!
+            if (gameState === 'PLAYING') {
+                chameleonTimer -= dt;
+                if (chameleonTimer <= 0) {
+                    chameleonTimer = 2.2;
+                    for (let i = 0; i < marbles.length; i++) {
+                        if (marbles[i].chameleon) {
+                            const prevCol = i > 0 ? marbles[i - 1].color : null;
+                            marbles[i].color = randomColor(prevCol || marbles[i].color);
+                            const pt = track.getPointAtDist(marbles[i].dist);
+                            spawnExplosion(pt.x, pt.y, '#f472b6', 5);
+                        }
+                    }
+                }
+
+                // EXTREME HAZARD 2: SKULL GRAVITY SURGE EVERY 5 SECONDS!
+                skullSurgeTimer -= dt;
+                if (skullSurgeTimer <= 0) {
+                    skullSurgeTimer = 5.2;
+                    skullSurgeActive = 0.85; // 0.85s of violent forward suction!
+                    sfx.playDanger();
+                    const endPt = track.getPointAtDist(track.totalLength);
+                    addFloatingText(endPt.x, endPt.y - 28, '¡SUCCIÓN DE LA CALAVERA! 💀⚡', '#ef4444', 22);
+                }
+                if (skullSurgeActive > 0) {
+                    skullSurgeActive = Math.max(0, skullSurgeActive - dt);
+                }
+            }
+
+            // Spawn rare power-up on random marble
             powerupSpawnCooldown -= dt;
-            if (powerupSpawnCooldown <= 0 && marbles.length > 5 && gameState === 'PLAYING') {
-                powerupSpawnCooldown = 7 + Math.random() * 5;
+            if (powerupSpawnCooldown <= 0 && marbles.length > 8 && gameState === 'PLAYING') {
+                powerupSpawnCooldown = 14 + Math.random() * 8; // Much rarer in extreme mode
                 const candidates = marbles.filter(m => !m.powerup);
                 if (candidates.length > 0) {
                     const chosen = candidates[Math.floor(Math.random() * candidates.length)];
@@ -1081,7 +1137,7 @@
             if (!zumaAchieved) {
                 if (marbles.length === 0 || marbles[0].dist >= MARBLE_DIAMETER) {
                     const firstDist = marbles.length > 0 ? marbles[0].dist - MARBLE_DIAMETER : 0;
-                    const avoid = marbles.length >= 2 && marbles[0].color === marbles[1].color ? marbles[0].color : null;
+                    const avoid = marbles.length > 0 ? marbles[0].color : null;
                     marbles.unshift({
                         id: marbleIdCounter++,
                         dist: Math.max(0, firstDist),
@@ -1089,7 +1145,9 @@
                         powerup: null,
                         vel: 0,
                         attracting: false,
-                        comboStep: 1
+                        comboStep: 1,
+                        armored: Math.random() < 0.22,
+                        chameleon: Math.random() < 0.20
                     });
                 }
             }
@@ -1098,12 +1156,16 @@
             if (marbles.length > 0) {
                 // Determine propulsion speed of the rear-most segment connected to the tunnel
                 let pushSpeed = lvl.baseSpeed;
-                // Catch-up speed boost when very few marbles are on screen before Zuma
-                if (!zumaAchieved && marbles.length < 10) {
+                // Violent catch-up speed boost when fewer than 25 marbles are on screen
+                if (!zumaAchieved && marbles.length < 25) {
+                    pushSpeed *= 2.8;
+                }
+                // Skull Gravity Surge multiplies speed by 2.4x!
+                if (skullSurgeActive > 0) {
                     pushSpeed *= 2.4;
                 }
-                if (slowTimer > 0) pushSpeed *= 0.35;
-                if (reverseTimer > 0) pushSpeed = -135;
+                if (slowTimer > 0) pushSpeed *= 0.45;
+                if (reverseTimer > 0) pushSpeed = -120;
 
                 // Move rear marble (index 0) if reverse is active OR if connected to tunnel
                 if (reverseTimer > 0) {
@@ -1265,7 +1327,7 @@
         }
 
         // --- DRAWING FUNCTIONS ---
-        function drawMarbleSphere(x, y, colorId, rotationAngle = 0, powerup = null, scale = 1) {
+        function drawMarbleSphere(x, y, colorId, rotationAngle = 0, powerup = null, scale = 1, armored = false, chameleon = false) {
             const typeObj = MARBLE_TYPES.find(t => t.id === colorId) || MARBLE_TYPES[0];
             const r = MARBLE_RADIUS * scale;
 
@@ -1273,7 +1335,7 @@
             ctx.translate(x, y);
 
             // Drop shadow in groove
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
             ctx.beginPath();
             ctx.arc(2, 4, r, 0, Math.PI * 2);
             ctx.fill();
@@ -1289,6 +1351,26 @@
             ctx.arc(0, 0, r, 0, Math.PI * 2);
             ctx.fill();
 
+            // Chameleon shifting aura ring
+            if (chameleon) {
+                ctx.strokeStyle = '#f472b6';
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([4, 3]);
+                ctx.beginPath();
+                ctx.arc(0, 0, r - 1.5, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Armored Obsidian Spiked Rim
+            if (armored) {
+                ctx.strokeStyle = '#d6d3d1';
+                ctx.lineWidth = 3.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, r - 1, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
             // Engraved Aztec Ring & Glyph (rotates as marble rolls!)
             ctx.save();
             ctx.rotate(rotationAngle);
@@ -1298,17 +1380,20 @@
             ctx.arc(0, 0, r * 0.68, 0, Math.PI * 2);
             ctx.stroke();
 
-            // Power-up badge or subtle tribal symbol
+            // Power-up badge, Armor icon, Chameleon icon or tribal symbol
             ctx.font = `${Math.floor(r * 0.85)}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             if (powerup) {
-                // Glowing ring for power-up
                 ctx.strokeStyle = '#fde047';
                 ctx.lineWidth = 2.5;
                 ctx.strokeRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1);
                 const pIcon = powerup === 'bomb' ? '💣' : powerup === 'slow' ? '⏳' : powerup === 'reverse' ? '⏪' : '☀️';
                 ctx.fillText(pIcon, 0, 1);
+            } else if (armored) {
+                ctx.fillText('🛡️', 0, 1);
+            } else if (chameleon) {
+                ctx.fillText('🦎', 0, 1);
             } else {
                 ctx.globalAlpha = 0.72;
                 ctx.fillText(typeObj.glyph, 0, 1);
@@ -1414,27 +1499,23 @@
             const recoilOffset = -frog.recoil;
             ctx.translate(recoilOffset, 0);
 
-            // 1. GOLDEN SOLAR BEAM (Inspired by the Zuma Deluxe Cover Art!)
-            // Subtle aiming beam normally, blazing bright solar laser when Laser Power-up is active
-            const beamLen = laserTimer > 0 ? 520 : 195;
-            const beamWidth = laserTimer > 0 ? 28 : 16;
-            const beamGrad = ctx.createLinearGradient(25, 0, beamLen, 0);
+            // 1. GOLDEN SOLAR BEAM (Disabled in Extreme Mode unless Laser Power-up is earned!)
             if (laserTimer > 0) {
+                const beamLen = 520;
+                const beamWidth = 28;
+                const beamGrad = ctx.createLinearGradient(25, 0, beamLen, 0);
                 beamGrad.addColorStop(0, 'rgba(253, 224, 71, 0.85)');
                 beamGrad.addColorStop(0.5, 'rgba(249, 115, 22, 0.45)');
                 beamGrad.addColorStop(1, 'rgba(249, 115, 22, 0)');
-            } else {
-                beamGrad.addColorStop(0, 'rgba(253, 224, 71, 0.35)');
-                beamGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+                ctx.fillStyle = beamGrad;
+                ctx.beginPath();
+                ctx.moveTo(22, -4);
+                ctx.lineTo(beamLen, -beamWidth);
+                ctx.lineTo(beamLen, beamWidth);
+                ctx.lineTo(22, 4);
+                ctx.closePath();
+                ctx.fill();
             }
-            ctx.fillStyle = beamGrad;
-            ctx.beginPath();
-            ctx.moveTo(22, -4);
-            ctx.lineTo(beamLen, -beamWidth);
-            ctx.lineTo(beamLen, beamWidth);
-            ctx.lineTo(22, 4);
-            ctx.closePath();
-            ctx.fill();
 
             // 2. FROG LEGS (Carved Jade/Stone)
             ctx.fillStyle = '#4d5e3b';
@@ -1555,7 +1636,7 @@
                 const m = marbles[i];
                 const pt = track.getPointAtDist(m.dist);
                 const rollAngle = m.dist / MARBLE_RADIUS;
-                drawMarbleSphere(pt.x, pt.y, m.color, rollAngle, m.powerup);
+                drawMarbleSphere(pt.x, pt.y, m.color, rollAngle, m.powerup, 1, m.armored, m.chameleon);
             }
 
             // 5. Draw Active Shot Bullets
