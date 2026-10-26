@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZUMA DELUXE - Templo del Sol</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(circle at center, #291d12 0%, #0f0a06 100%);
+            font-family: 'Fredoka', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+        .aztec-font {
+            font-family: 'Cinzel Decorative', cursive;
+        }
+        /* Stone carved title style inspired by Zuma Deluxe cover */
+        .zuma-title {
+            font-family: 'Cinzel Decorative', cursive;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(180deg, #fff3a1 0%, #facc15 35%, #ea580c 75%, #7c2d12 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0px 5px 0px #431407) drop-shadow(0px 10px 15px rgba(0,0,0,0.85));
+        }
+        .deluxe-subtitle {
+            background: linear-gradient(180deg, #fde047 0%, #f97316 60%, #9a3412 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0px 3px 0px #3b0764) drop-shadow(0px 6px 10px rgba(0,0,0,0.8));
+        }
+        .stone-panel {
+            background: linear-gradient(145deg, #3c3024, #231b14);
+            border: 3px solid #785a3c;
+            box-shadow: inset 0 2px 4px rgba(255,255,255,0.15), 
+                        inset 0 -4px 8px rgba(0,0,0,0.7),
+                        0 12px 25px rgba(0,0,0,0.8);
+        }
+        .stone-btn {
+            background: linear-gradient(180deg, #ca8a04 0%, #854d0e 50%, #422006 100%);
+            border: 2px solid #fde047;
+            box-shadow: 0 5px 0 #271202, 0 8px 15px rgba(0,0,0,0.6), inset 0 2px 3px rgba(255,255,255,0.4);
+            transition: all 0.12s ease;
+        }
+        .stone-btn:hover {
+            filter: brightness(1.12);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 0 #271202, 0 12px 20px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.5);
+        }
+        .stone-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #271202, 0 4px 8px rgba(0,0,0,0.6);
+        }
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.7)); }
+            50% { filter: drop-shadow(0 0 18px rgba(234, 88, 12, 1)); }
+        }
+        .zuma-ready-glow {
+            animation: pulseGlow 1.2s infinite;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col items-center justify-between select-none overflow-hidden text-amber-100">
+
+    <!-- TOP HUD BAR -->
+    <header class="w-full max-w-5xl px-3 py-2 flex items-center justify-between stone-panel rounded-b-2xl z-20 shrink-0">
+        <!-- Left: Lives & Level -->
+        <div class="flex items-center gap-3 sm:gap-5">
+            <div class="flex items-center gap-1.5 bg-black/40 px-3 py-1 rounded-xl border border-amber-700/50">
+                <span class="text-xs sm:text-sm text-amber-400 uppercase tracking-wider font-bold">Templo</span>
+                <span id="hud-level" class="text-lg sm:text-xl font-extrabold text-yellow-300">1-1</span>
+            </div>
+
+            <!-- Lives (Golden Frogs) -->
+            <div class="flex items-center gap-1 bg-black/40 px-2.5 py-1 rounded-xl border border-amber-700/50" title="Vidas restantes">
+                <span id="hud-lives" class="flex items-center gap-1 text-base sm:text-lg">
+                    🐸🐸🐸
+                </span>
+            </div>
+        </div>
+
+        <!-- Center: ZUMA SUN METER -->
+        <div class="flex flex-col items-center flex-1 max-w-xs mx-2">
+            <div class="flex justify-between w-full text-[11px] font-bold tracking-widest text-amber-300 mb-0.5 px-1">
+                <span>BARRA SOLAR</span>
+                <span id="zuma-pct-label">0%</span>
+            </div>
+            <div class="w-full h-4 bg-stone-950 rounded-full p-0.5 border-2 border-amber-600/80 relative overflow-hidden shadow-inner">
+                <div id="zuma-bar-fill" class="h-full rounded-full transition-all duration-200 bg-gradient-to-r from-amber-600 via-yellow-400 to-lime-300" style="width: 0%"></div>
+                <div id="zuma-bar-text" class="hidden absolute inset-0 flex items-center justify-center text-[10px] font-black text-stone-950 tracking-widest">
+                    ¡ZUMA! ¡CAMINO CERRADO!
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Score & Controls -->
+        <div class="flex items-center gap-2 sm:gap-3">
+            <div class="bg-black/50 px-3 py-1 rounded-xl border border-amber-600/60 text-right min-w-[95px] sm:min-w-[120px]">
+                <div class="text-[10px] text-amber-400 uppercase leading-none">Puntos</div>
+                <div id="hud-score" class="text-base sm:text-xl font-black text-yellow-300 tracking-wider leading-tight">0</div>
+            </div>
+
+            <button id="btn-swap" class="stone-btn px-2.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold text-amber-100 flex items-center gap-1" title="Cambiar Esfera (Espacio o Clic Derecho)">
+                <span>🔄</span>
+                <span class="hidden md:inline">Cambiar</span>
+            </button>
+
+            <button id="btn-sound" class="stone-btn p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-sm font-bold text-amber-100" title="Sonido Sí/No">
+                🔊
+            </button>
+
+            <button id="btn-pause" class="stone-btn p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-sm font-bold text-amber-100" title="Pausar / Menú">
+                ⏸️
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN GAME STAGE -->
+    <main id="canvas-container" class="relative flex-1 w-full flex items-center justify-center overflow-hidden">
+        <canvas id="gameCanvas" class="rounded-2xl shadow-2xl border-2 border-amber-900/60"></canvas>
+
+        <!-- START / MENU OVERLAY -->
+        <div id="menu-overlay" class="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-30 p-4">
+            <div class="stone-panel max-w-lg w-full rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden border-4 border-amber-600">
+                <!-- Decorative Aztec Corner Ornaments -->
+                <div class="absolute top-2 left-2 w-6 h-6 border-t-4 border-l-4 border-yellow-400/60"></div>
+                <div class="absolute top-2 right-2 w-6 h-6 border-t-4 border-r-4 border-yellow-400/60"></div>
+                <div class="absolute bottom-2 left-2 w-6 h-6 border-b-4 border-l-4 border-yellow-400/60"></div>
+                <div class="absolute bottom-2 right-2 w-6 h-6 border-b-4 border-r-4 border-yellow-400/60"></div>
+
+                <h1 class="zuma-title text-5xl sm:text-6xl mb-0 leading-none select-none">ZUMA</h1>
+                <h2 class="deluxe-subtitle aztec-font text-2xl sm:text-3xl font-black tracking-widest mb-4 -mt-1">DELUXE</h2>
+
+                <!-- Animated SVG Mini Preview of Frog & Sun Beam -->
+                <div class="relative mx-auto w-28 h-28 mb-4 rounded-full bg-stone-900 border-4 border-amber-500 flex items-center justify-center shadow-inner overflow-hidden">
+                    <div class="absolute w-32 h-8 bg-gradient-to-r from-yellow-300/80 to-transparent rotate-45 translate-x-6 translate-y-6 blur-sm"></div>
+                    <span class="text-6xl filter drop-shadow-lg">🐸</span>
+                </div>
+
+                <p class="text-amber-200/90 text-sm sm:text-base mb-5 leading-relaxed">
+                    Dispara esferas ancestrales para unir <strong>3 o más del mismo color</strong> antes de que lleguen a la <strong>Calavera Dorada</strong>. ¡Crea reacciones en cadena y llena la Barra Solar para gritar <strong>ZUMA</strong>!
+                </p>
+
+                <!-- Level Selector -->
+                <div class="mb-6">
+                    <div class="text-xs uppercase tracking-widest text-amber-400 font-bold mb-2">Selecciona el Santuario</div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button data-level="0" class="lvl-select-btn py-2 px-2 rounded-xl border-2 border-yellow-400 bg-amber-900/70 text-yellow-200 font-bold text-xs sm:text-sm shadow">
+                            1. Espiral Solar
+                        </button>
+                        <button data-level="1" class="lvl-select-btn py-2 px-2 rounded-xl border-2 border-amber-700/60 bg-stone-800/80 text-amber-300/80 font-bold text-xs sm:text-sm">
+                            2. Serpiente Emplumada
+                        </button>
+                        <button data-level="2" class="lvl-select-btn py-2 px-2 rounded-xl border-2 border-amber-700/60 bg-stone-800/80 text-amber-300/80 font-bold text-xs sm:text-sm">
+                            3. Altar del Eclipse
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Controls Info -->
+                <div class="grid grid-cols-2 gap-2 text-left bg-black/40 p-3 rounded-xl border border-amber-800/60 text-xs text-amber-200 mb-6">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🎯</span>
+                        <span><strong>Clic / Toque:</strong> Apuntar y disparar esfera</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🔄</span>
+                        <span><strong>Clic Derecho / Espacio:</strong> Alternar color</span>
+                    </div>
+                </div>
+
+                <button id="btn-start-game" class="stone-btn w-full py-3.5 rounded-2xl text-xl font-black tracking-wider text-yellow-100 uppercase">
+                    ¡Jugar Ahora!
+                </button>
+            </div>
+        </div>
+
+        <!-- VICTORY / GAME OVER MODAL -->
+        <div id="status-modal" class="hidden absolute inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-30 p-4">
+            <div class="stone-panel max-w-md w-full rounded-3xl p-6 text-center border-4 border-amber-500">
+                <div id="modal-icon" class="text-6xl mb-2">🏆</div>
+                <h3 id="modal-title" class="zuma-title text-3xl sm:text-4xl mb-2">¡TEMPLO SUPERADO!</h3>
+                <p id="modal-desc" class="text-amber-200 text-sm sm:text-base mb-4">Has purificado el camino sagrado.</p>
+
+                <div class="bg-black/45 rounded-2xl p-3 mb-5 border border-amber-700/50 grid grid-cols-2 gap-2">
+                    <div>
+                        <div class="text-xs text-amber-400 uppercase">Puntuación</div>
+                        <div id="modal-score" class="text-2xl font-black text-yellow-300">0</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-amber-400 uppercase">Combo Máximo</div>
+                        <div id="modal-combo" class="text-2xl font-black text-orange-400">x1</div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button id="btn-modal-menu" class=" flex-1 py-3 rounded-xl bg-stone-800 hover:bg-stone-700 border-2 border-amber-700 font-bold text-amber-200">
+                        Menú
+                    </button>
+                    <button id="btn-modal-action" class="stone-btn flex-1 py-3 rounded-xl font-black text-yellow-100 text-lg">
+                        Siguiente Nivel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- BOTTOM POWERUP LEGEND BAR -->
+    <footer class="w-full max-w-5xl px-4 py-1.5 stone-panel rounded-t-2xl flex flex-wrap items-center justify-between text-xs text-amber-300/90 z-20 shrink-0">
+        <div class="flex items-center gap-4 mx-auto sm:mx-0">
+            <span class="font-bold text-yellow-400 uppercase tracking-wider hidden sm:inline">Poderes Ancestrales:</span>
+            <span class="flex items-center gap-1"><b class="text-red-400">💣 Bomba:</b> Explosión de área</span>
+            <span class="flex items-center gap-1"><b class="text-cyan-300">⏳ Hielo:</b> Ralentiza</span>
+            <span class="flex items-center gap-1"><b class="text-lime-400">⏪ Reversa:</b> Retrocede fila</span>
+            <span class="flex items-center gap-1"><b class="text-yellow-300">☀️ Rayo Solar:</b> Láser guía</span>
+        </div>
+        <div class="hidden md:block text-amber-400/70 italic">
+            Consejo: Toca la Rana o presiona [ESPACIO] para intercambiar esferas
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * ============================================================================
+         * ZUMA DELUXE - COMPLETE ENGINE IN SINGLE HTML FILE
+         * Includes:
+         * - Arc-Length Parameterized Custom Paths (Spiral, Serpent, Twin Altar)
+         * - Engraved Aztec Marbles with Symbols & Shading
+         * - Rotating Stone Frog Idol with Recoil, Tongue & Color Swap
+         * - Magnetic Backwards Attraction for Chain Reaction Combos
+         * - Special Power-Up Marbles (Bomb, Slow, Reverse, Solar Laser Beam)
+         * - Bonus Golden Aztec Coins & Animated Golden Skull
+         * - Web Audio API Procedural Sound Synthesizer
+         * ============================================================================
+         */
+
+        // --- WEB AUDIO SYNTHESIZER ---
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            playShoot() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(190, now);
+                osc.frequency.exponentialRampToValueAtTime(520, now + 0.09);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.11);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.11);
+            }
+            playSwap() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(340, now);
+                osc.frequency.setValueAtTime(480, now + 0.04);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.09);
+            }
+            playClack() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(140, now);
+                osc.frequency.exponentialRampToValueAtTime(65, now + 0.06);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.06);
+            }
+            playMatch(comboLevel = 1) {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const baseFreq = 320 * Math.pow(1.12, Math.min(comboLevel, 10));
+                [1, 1.25, 1.5].forEach((mult, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(baseFreq * mult, now + idx * 0.045);
+                    gain.gain.setValueAtTime(0.22, now + idx * 0.045);
+                    gain.gain.exponentialRampToValueAtTime(0.008, now + idx * 0.045 + 0.28);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.045);
+                    osc.stop(now + idx * 0.045 + 0.29);
+                });
+            }
+            playBomb() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(28, now + 0.38);
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+            playZumaChant() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [261.63, 329.63, 392.00, 523.25];
+                notes.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.08);
+                    gain.gain.setValueAtTime(0.18, now + i * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.008, now + i * 0.08 + 0.55);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + i * 0.08 + 0.56);
+                });
+            }
+            playDanger() {
+                if (!this.enabled || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(85, now);
+                osc.frequency.linearRampToValueAtTime(65, now + 0.15);
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.16);
+            }
+        }
+
+        const sfx = new SoundEngine();
+
+        // --- CONSTANTS & CONFIG ---
+        const LOGICAL_WIDTH = 900;
+        const LOGICAL_HEIGHT = 620;
+        const MARBLE_RADIUS = 17;
+        const MARBLE_DIAMETER = MARBLE_RADIUS * 2; // 34px
+
+        const MARBLE_TYPES = [
+            { id: 'red',    fill: '#ef4444', dark: '#7f1d1d', light: '#fca5a5', glyph: '☀️' },
+            { id: 'blue',   fill: '#3b82f6', dark: '#1e3a8a', light: '#93c5fd', glyph: '🌊' },
+            { id: 'yellow', fill: '#eab308', dark: '#713f12', light: '#fef08a', glyph: '⚡' },
+            { id: 'green',  fill: '#22c55e', dark: '#14532d', light: '#86efac', glyph: '🌿' },
+            { id: 'purple', fill: '#a855f7', dark: '#581c87', light: '#d8b4fe', glyph: '🌙' },
+            { id: 'white',  fill: '#e7e5e4', dark: '#57534e', light: '#ffffff', glyph: '💎' }
+        ];
+
+        const POWERUPS = ['bomb', 'slow', 'reverse', 'laser'];
+
+        // --- LEVEL DEFINITIONS (Procedural High-Res Arc-Length Paths) ---
+        const LEVELS = [
+            {
+                name: "1-1 Espiral del Sol",
+                colorsCount: 4,
+                zumaTarget: 1000,
+                baseSpeed: 42, // pixels per second
+                frogPos: { x: 450, y: 315 },
+                buildRawPoints: () => {
+                    // Classic Zuma Oval Spiral around the center frog
+                    const pts = [];
+                    const cx = 450, cy = 315;
+                    const turns = 1.65;
+                    const steps = 420;
+                    for (let i = 0; i <= steps; i++) {
+                        const t = i / steps;
+                        const angle = -Math.PI * 0.65 + t * Math.PI * 2 * turns;
+                        const rx = 395 - t * 235;
+                        const ry = 265 - t * 155;
+                        pts.push({
+                            x: cx + Math.cos(angle) * rx,
+                            y: cy + Math.sin(angle) * ry
+                        });
+                    }
+                    return pts;
+                }
+            },
+            {
+                name: "2-1 Serpiente Emplumada",
+                colorsCount: 5,
+                zumaTarget: 1400,
+                baseSpeed: 48,
+                frogPos: { x: 450, y: 335 },
+                buildRawPoints: () => {
+                    // Outer temple wrap + sinuous wave around the frog
+                    const pts = [];
+                    const steps = 460;
+                    for (let i = 0; i <= steps; i++) {
+                        const t = i / steps;
+                        const angle = -Math.PI * 0.85 + t * Math.PI * 3.15;
+                        const baseR = 385 - t * 225;
+                        const wave = Math.sin(t * Math.PI * 8) * 18 * (1 - t * 0.5);
+                        const rx = baseR + wave;
+                        const ry = (265 - t * 150) + wave * 0.7;
+                        pts.push({
+                            x: 450 + Math.cos(angle) * rx,
+                            y: 320 + Math.sin(angle) * ry
+                        });
+                    }
+                    return pts;
+                }
+            },
+            {
+                name: "3-1 Altar del Eclipse",
+                colorsCount: 6,
+                zumaTarget: 1800,
+                baseSpeed: 54,
+                frogPos: { x: 450, y: 310 },
+                buildRawPoints: () => {
+                    // Double-looped Aztec Diamond/Rounded Fortress Track
+                    const pts = [];
+                    const steps = 500;
+                    for (let i = 0; i <= steps; i++) {
+                        const t = i / steps;
+                        const theta = t * Math.PI * 3.6 - Math.PI * 0.4;
+                        const shrink = 1 - t * 0.58;
+                        const rx = 400 * shrink;
+                        const ry = 270 * shrink;
+                        // Slight squircle harmonic for carved temple look
+                        const x = 450 + (Math.cos(theta) + 0.08 * Math.cos(3 * theta)) * rx;
+                        const y = 310 + (Math.sin(theta) - 0.08 * Math.sin(3 * theta)) * ry;
+                        pts.push({ x, y });
+                    }
+                    return pts;
+                }
+            }
+        ];
+
+        // --- ARC-LENGTH PATH LUT BUILDER ---
+        class TrackPath {
+            constructor(rawPoints) {
+                this.samples = [];
+                this.totalLength = 0;
+                this.buildLUT(rawPoints);
+            }
+            buildLUT(rawPoints) {
+                let accum = 0;
+                this.samples.push({ x: rawPoints[0].x, y: rawPoints[0].y, dist: 0, angle: 0 });
+                for (let i = 1; i < rawPoints.length; i++) {
+                    const dx = rawPoints[i].x - rawPoints[i - 1].x;
+                    const dy = rawPoints[i].y - rawPoints[i - 1].y;
+                    const segLen = Math.hypot(dx, dy);
+                    accum += segLen;
+                    const angle = Math.atan2(dy, dx);
+                    this.samples.push({
+                        x: rawPoints[i].x,
+                        y: rawPoints[i].y,
+                        dist: accum,
+                        angle
+                    });
+                }
+                if (this.samples.length > 1) {
+                    this.samples[0].angle = this.samples[1].angle;
+                }
+                this.totalLength = accum;
+            }
+            // Binary search to get exact {x, y, angle} at distance `d` along path
+            getPointAtDist(d) {
+                const clamped = Math.max(0, Math.min(this.totalLength, d));
+                let low = 0;
+                let high = this.samples.length - 1;
+                while (low < high) {
+                    const mid = (low + high) >> 1;
+                    if (this.samples[mid].dist < clamped) {
+                        low = mid + 1;
+                    } else {
+                        high = mid;
+                    }
+                }
+                const idx = Math.max(1, low);
+                const p0 = this.samples[idx - 1];
+                const p1 = this.samples[idx];
+                const span = p1.dist - p0.dist || 1;
+                const t = (clamped - p0.dist) / span;
+                return {
+                    x: p0.x + (p1.x - p0.x) * t,
+                    y: p0.y + (p1.y - p0.y) * t,
+                    angle: p1.angle
+                };
+            }
+        }
+
+        // --- MAIN GAME STATE ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let scaleRatio = 1;
+        let currentLevelIdx = 0;
+        let gameState = 'MENU'; // MENU, PLAYING, PAUSED, SWALLOWING, VICTORY, GAMEOVER
+
+        let track = null;
+        let marbles = [];       // Sorted from tail (closest to start tunnel, smallest dist) to head (closest to skull, largest dist)
+        let bullets = [];       // Active shot marbles
+        let particles = [];     // Visual explosions & sparks
+        let floatingTexts = []; // Floating score & combo popups
+        let bonusCoin = null;   // Collectible golden coin
+
+        let score = 0;
+        let lives = 3;
+        let zumaProgress = 0;
+        let zumaAchieved = false;
+        let chainCombo = 0;
+        let maxCombo = 1;
+        let marbleIdCounter = 1;
+
+        // Power-up timers
+        let slowTimer = 0;
+        let reverseTimer = 0;
+        let laserTimer = 0;
+
+        // Frog state
+        const frog = {
+            x: 450,
+            y: 315,
+            angle: 0,
+            currentColor: 'red',
+            nextColor: 'blue',
+            recoil: 0,
+            blinkTimer: 0
+        };
+
+        // Pre-rendered Stone Background offscreen canvas for crisp 60fps performance
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = LOGICAL_WIDTH;
+        bgCanvas.height = LOGICAL_HEIGHT;
+        const bgCtx = bgCanvas.getContext('2d');
+
+        // --- INITIALIZATION & RESIZING ---
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            const availW = container.clientWidth - 16;
+            const availH = container.clientHeight - 16;
+            const aspect = LOGICAL_WIDTH / LOGICAL_HEIGHT;
+
+            let targetW = availW;
+            let targetH = targetW / aspect;
+            if (targetH > availH) {
+                targetH = availH;
+                targetW = targetH * aspect;
+            }
+
+            canvas.style.width = `${Math.floor(targetW)}px`;
+            canvas.style.height = `${Math.floor(targetH)}px`;
+            canvas.width = LOGICAL_WIDTH;
+            canvas.height = LOGICAL_HEIGHT;
+            scaleRatio = targetW / LOGICAL_WIDTH;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // --- PRE-RENDER CARVED STONE TEMPLE & SUNKEN TRACK ---
+        function renderTempleBackground() {
+            bgCtx.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+            // 1. Base Dark Stone Slab Gradient
+            const radGrad = bgCtx.createRadialGradient(
+                frog.x, frog.y, 40,
+                LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2, 560
+            );
+            radGrad.addColorStop(0, '#3d3024');
+            radGrad.addColorStop(0.55, '#281f16');
+            radGrad.addColorStop(1, '#140f0a');
+            bgCtx.fillStyle = radGrad;
+            bgCtx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+            // 2. Procedural Stone Grain & Temple Blocks
+            bgCtx.save();
+            bgCtx.strokeStyle = 'rgba(0, 0, 0, 0.28)';
+            bgCtx.lineWidth = 2;
+            const tileSize = 75;
+            for (let x = 0; x < LOGICAL_WIDTH; x += tileSize) {
+                for (let y = 0; y < LOGICAL_HEIGHT; y += tileSize) {
+                    const offset = ((y / tileSize) % 2) * (tileSize / 2);
+                    bgCtx.strokeRect(x + offset, y, tileSize, tileSize);
+                    // Subtle highlight on block edge
+                    bgCtx.fillStyle = ((x + y) % 150 === 0) ? 'rgba(255, 215, 140, 0.02)' : 'rgba(0, 0, 0, 0.04)';
+                    bgCtx.fillRect(x + offset + 2, y + 2, tileSize - 4, tileSize - 4);
+                }
+            }
+            bgCtx.restore();
+
+            // 3. Giant Faint Aztec Sun Calendar Carving around Frog
+            bgCtx.save();
+            bgCtx.translate(frog.x, frog.y);
+            bgCtx.strokeStyle = 'rgba(217, 119, 6, 0.12)';
+            bgCtx.lineWidth = 3;
+            for (let r of [95, 130, 210, 310]) {
+                bgCtx.beginPath();
+                bgCtx.arc(0, 0, r, 0, Math.PI * 2);
+                bgCtx.stroke();
+            }
+            for (let i = 0; i < 16; i++) {
+                const a = (i * Math.PI) / 8;
+                bgCtx.beginPath();
+                bgCtx.moveTo(Math.cos(a) * 85, Math.sin(a) * 85);
+                bgCtx.lineTo(Math.cos(a) * 310, Math.sin(a) * 310);
+                bgCtx.stroke();
+            }
+            bgCtx.restore();
+
+            if (!track) return;
+
+            // 4. Sunken Stone Track Groove
+            bgCtx.save();
+            bgCtx.lineCap = 'round';
+            bgCtx.lineJoin = 'round';
+
+            // Outer stone border rim
+            bgCtx.beginPath();
+            track.samples.forEach((pt, idx) => {
+                if (idx === 0) bgCtx.moveTo(pt.x, pt.y);
+                else bgCtx.lineTo(pt.x, pt.y);
+            });
+            bgCtx.strokeStyle = '#574330';
+            bgCtx.lineWidth = MARBLE_DIAMETER + 14;
+            bgCtx.stroke();
+
+            // Deep dark inner channel
+            bgCtx.strokeStyle = '#120d08';
+            bgCtx.lineWidth = MARBLE_DIAMETER + 6;
+            bgCtx.stroke();
+
+            // Recessed groove center path texture
+            bgCtx.strokeStyle = '#1e160f';
+            bgCtx.lineWidth = MARBLE_DIAMETER - 4;
+            bgCtx.stroke();
+
+            // Dashed Aztec markings inside the groove
+            bgCtx.setLineDash([8, 18]);
+            bgCtx.strokeStyle = 'rgba(180, 130, 70, 0.18)';
+            bgCtx.lineWidth = 4;
+            bgCtx.stroke();
+            bgCtx.setLineDash([]);
+            bgCtx.restore();
+
+            // 5. Stone Pedestal under the Frog
+            bgCtx.save();
+            bgCtx.translate(frog.x, frog.y);
+            const pedGrad = bgCtx.createRadialGradient(0, 0, 15, 0, 0, 76);
+            pedGrad.addColorStop(0, '#574634');
+            pedGrad.addColorStop(0.75, '#2e241a');
+            pedGrad.addColorStop(1, '#120d08');
+            bgCtx.fillStyle = pedGrad;
+            bgCtx.beginPath();
+            bgCtx.arc(0, 0, 74, 0, Math.PI * 2);
+            bgCtx.fill();
+            bgCtx.lineWidth = 4;
+            bgCtx.strokeStyle = '#856849';
+            bgCtx.stroke();
+            bgCtx.restore();
+        }
+
+        // --- HELPER: PICK ALLOWED COLOR ---
+        function getAvailableColors() {
+            const maxColors = LEVELS[currentLevelIdx].colorsCount;
+            const palette = MARBLE_TYPES.slice(0, maxColors).map(m => m.id);
+
+            // If marbles exist on board, only let frog spawn colors currently present
+            if (marbles.length > 0) {
+                const activeSet = new Set(marbles.map(m => m.color));
+                const filtered = palette.filter(c => activeSet.has(c));
+                if (filtered.length > 0) return filtered;
+            }
+            return palette;
+        }
+
+        function randomColor(avoidColor = null) {
+            const pool = getAvailableColors();
+            if (pool.length > 1 && avoidColor && Math.random() < 0.65) {
+                const others = pool.filter(c => c !== avoidColor);
+                return others[Math.floor(Math.random() * others.length)];
+            }
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        // --- START / LOAD LEVEL ---
+        function initLevel(levelIndex, resetScore = false) {
+            currentLevelIdx = levelIndex % LEVELS.length;
+            const lvl = LEVELS[currentLevelIdx];
+
+            if (resetScore) {
+                score = 0;
+                lives = 3;
+            }
+
+            track = new TrackPath(lvl.buildRawPoints());
+            frog.x = lvl.frogPos.x;
+            frog.y = lvl.frogPos.y;
+            frog.recoil = 0;
+
+            marbles = [];
+            bullets = [];
+            particles = [];
+            floatingTexts = [];
+            bonusCoin = null;
+
+            zumaProgress = 0;
+            zumaAchieved = false;
+            chainCombo = 0;
+            maxCombo = 1;
+            slowTimer = 0;
+            reverseTimer = 0;
+            laserTimer = 0;
+
+            // Spawn initial burst of 22 marbles emerging from tunnel
+            let lastCol = null;
+            for (let i = 0; i < 22; i++) {
+                // Keep clumps of 1-2 same color so board isn't chaotic, but never 3 in a row initially
+                const color = (i % 2 === 1 && Math.random() < 0.45 && lastCol)
+                    ? lastCol
+                    : randomColor(lastCol);
+                lastCol = color;
+                marbles.push({
+                    id: marbleIdCounter++,
+                    dist: i * MARBLE_DIAMETER,
+                    color: color,
+                    powerup: null,
+                    vel: 0,
+                    attracting: false,
+                    comboStep: 0
+                });
+            }
+
+            frog.currentColor = randomColor();
+            frog.nextColor = randomColor(frog.currentColor);
+
+            renderTempleBackground();
+            updateHUD();
+            gameState = 'PLAYING';
+        }
+
+        // --- UPDATE HUD ---
+        function updateHUD() {
+            document.getElementById('hud-level').textContent = `${currentLevelIdx + 1}-1`;
+            document.getElementById('hud-score').textContent = score.toLocaleString();
+            document.getElementById('hud-lives').textContent = '🐸'.repeat(Math.max(0, lives)) || '💀';
+
+            const lvl = LEVELS[currentLevelIdx];
+            const pct = Math.min(100, Math.floor((zumaProgress / lvl.zumaTarget) * 100));
+            document.getElementById('zuma-pct-label').textContent = zumaAchieved ? '¡ZUMA!' : `${pct}%`;
+
+            const barFill = document.getElementById('zuma-bar-fill');
+            const barText = document.getElementById('zuma-bar-text');
+            barFill.style.width = `${pct}%`;
+
+            if (zumaAchieved) {
+                barFill.classList.add('zuma-ready-glow');
+                barText.classList.remove('hidden');
+            } else {
+                barFill.classList.remove('zuma-ready-glow');
+                barText.classList.add('hidden');
+            }
+        }
+
+        // --- SPAWN FLOATING TEXT & PARTICLES ---
+        function addFloatingText(x, y, text, color = '#fde047', size = 22) {
+            floatingTexts.push({
+                x, y, text, color, size,
+                alpha: 1,
+                vy: -55,
+                life: 1.05
+            });
+        }
+
+        function spawnExplosion(x, y, colorHex, count = 14) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 40 + Math.random() * 150;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 3 + Math.random() * 5,
+                    color: colorHex,
+                    alpha: 1,
+                    life: 0.4 + Math.random() * 0.35
+                });
+            }
+        }
+
+        // --- FROG ACTIONS: SHOOT & SWAP ---
+        function shootMarble() {
+            if (gameState !== 'PLAYING') return;
+            sfx.init();
+            sfx.playShoot();
+
+            const speed = laserTimer > 0 ? 880 : 680;
+            const muzzleDist = 34;
+            bullets.push({
+                x: frog.x + Math.cos(frog.angle) * muzzleDist,
+                y: frog.y + Math.sin(frog.angle) * muzzleDist,
+                vx: Math.cos(frog.angle) * speed,
+                vy: Math.sin(frog.angle) * speed,
+                color: frog.currentColor
+            });
+
+            frog.recoil = 12;
+            frog.currentColor = frog.nextColor;
+            frog.nextColor = randomColor(frog.currentColor);
+        }
+
+        function swapFrogMarbles() {
+            if (gameState !== 'PLAYING') return;
+            sfx.init();
+            sfx.playSwap();
+            const temp = frog.currentColor;
+            frog.currentColor = frog.nextColor;
+            frog.nextColor = temp;
+        }
+
+        // --- MATCH-3 & POWERUP EVALUATION ---
+        function checkMatchAt(index, comboMultiplier = 1) {
+            if (index < 0 || index >= marbles.length) return false;
+            const targetColor = marbles[index].color;
+
+            let start = index;
+            while (start > 0 && marbles[start - 1].color === targetColor &&
+                   Math.abs(marbles[start].dist - marbles[start - 1].dist) <= MARBLE_DIAMETER + 4.5) {
+                start--;
+            }
+
+            let end = index;
+            while (end < marbles.length - 1 && marbles[end + 1].color === targetColor &&
+                   Math.abs(marbles[end + 1].dist - marbles[end].dist) <= MARBLE_DIAMETER + 4.5) {
+                end++;
+            }
+
+            const count = end - start + 1;
+            if (count < 3) return false;
+
+            // We have a match of 3 or more!
+            sfx.playMatch(comboMultiplier);
+            maxCombo = Math.max(maxCombo, comboMultiplier);
+
+            // Check if any matched marble holds a power-up
+            const matchedSlice = marbles.slice(start, end + 1);
+            let bombCenterDist = null;
+
+            matchedSlice.forEach(m => {
+                if (m.powerup === 'bomb') {
+                    bombCenterDist = m.dist;
+                } else if (m.powerup === 'slow') {
+                    slowTimer = 7.0;
+                    const pt = track.getPointAtDist(m.dist);
+                    addFloatingText(pt.x, pt.y - 18, '¡TIEMPO LENTO! ⏳', '#67e8f9', 24);
+                } else if (m.powerup === 'reverse') {
+                    reverseTimer = 3.2;
+                    const pt = track.getPointAtDist(m.dist);
+                    addFloatingText(pt.x, pt.y - 18, '¡REVERSA! ⏪', '#a3e635', 24);
+                } else if (m.powerup === 'laser') {
+                    laserTimer = 9.0;
+                    const pt = track.getPointAtDist(m.dist);
+                    addFloatingText(pt.x, pt.y - 18, '¡RAYO SOLAR! ☀️', '#fde047', 24);
+                }
+            });
+
+            // If bomb triggered, expand start/end range to blast nearby marbles
+            if (bombCenterDist !== null) {
+                sfx.playBomb();
+                const blastRange = MARBLE_DIAMETER * 3.6;
+                while (start > 0 && Math.abs(marbles[start - 1].dist - bombCenterDist) <= blastRange) {
+                    start--;
+                }
+                while (end < marbles.length - 1 && Math.abs(marbles[end + 1].dist - bombCenterDist) <= blastRange) {
+                    end++;
+                }
+            }
+
+            // Compute visual center & remove marbles
+            const midMarble = marbles[Math.floor((start + end) / 2)];
+            const centerPt = track.getPointAtDist(midMarble.dist);
+
+            for (let i = start; i <= end; i++) {
+                const m = marbles[i];
+                const pt = track.getPointAtDist(m.dist);
+                const typeObj = MARBLE_TYPES.find(t => t.id === m.color) || MARBLE_TYPES[0];
+                spawnExplosion(pt.x, pt.y, typeObj.fill, bombCenterDist !== null ? 20 : 12);
+            }
+
+            const removedCount = end - start + 1;
+            const gainedPoints = removedCount * 100 * comboMultiplier;
+            score += gainedPoints;
+
+            // Advance Zuma Sun Meter if not yet achieved
+            if (!zumaAchieved) {
+                zumaProgress += gainedPoints;
+                if (zumaProgress >= LEVELS[currentLevelIdx].zumaTarget) {
+                    zumaAchieved = true;
+                    reverseTimer = Math.max(reverseTimer, 1.8); // Brief celebratory pushback
+                    sfx.playZumaChant();
+                    addFloatingText(LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2 - 50, '¡ZUMA!', '#facc15', 42);
+                }
+            }
+
+            const label = comboMultiplier > 1
+                ? `+${gainedPoints} ¡COMBO x${comboMultiplier}!`
+                : `+${gainedPoints}`;
+            addFloatingText(centerPt.x, centerPt.y, label, comboMultiplier > 1 ? '#fb923c' : '#fde047', comboMultiplier > 1 ? 26 : 20);
+
+            // Splice out destroyed marbles
+            marbles.splice(start, removedCount);
+
+            // If the marble right before the gap and right after the gap exist, prime magnetic combo step!
+            if (start > 0 && start < marbles.length) {
+                if (marbles[start - 1].color === marbles[start].color) {
+                    marbles[start].comboStep = comboMultiplier + 1;
+                }
+            }
+
+            // Ensure frog holds valid colors if a color was completely wiped out
+            const validColors = getAvailableColors();
+            if (marbles.length > 0) {
+                if (!validColors.includes(frog.currentColor)) frog.currentColor = validColors[0];
+                if (!validColors.includes(frog.nextColor)) frog.nextColor = validColors[validColors.length - 1];
+            }
+
+            updateHUD();
+            return true;
+        }
+
+        // --- INSERT SHOT MARBLE INTO TRACK ---
+        function insertBulletAt(hitIndex, bullet) {
+            sfx.playClack();
+            const hitMarble = marbles[hitIndex];
+            const hitPt = track.getPointAtDist(hitMarble.dist);
+
+            // Project vector from hit marble to bullet onto the track tangent to see if it hit front or back
+            const tangentX = Math.cos(hitPt.angle);
+            const tangentY = Math.sin(hitPt.angle);
+            const dx = bullet.x - hitPt.x;
+            const dy = bullet.y - hitPt.y;
+            const proj = dx * tangentX + dy * tangentY;
+
+            let insertIdx = proj >= 0 ? hitIndex + 1 : hitIndex;
+            let insertDist = proj >= 0
+                ? hitMarble.dist + MARBLE_DIAMETER
+                : Math.max(0, hitMarble.dist);
+
+            // Push all marbles ahead of insertion point forward so there is zero overlap
+            const newMarble = {
+                id: marbleIdCounter++,
+                dist: insertDist,
+                color: bullet.color,
+                powerup: null,
+                vel: 0,
+                attracting: false,
+                comboStep: 1
+            };
+
+            marbles.splice(insertIdx, 0, newMarble);
+
+            // Resolve immediate spacing forward & backward
+            for (let i = insertIdx + 1; i < marbles.length; i++) {
+                if (marbles[i].dist < marbles[i - 1].dist + MARBLE_DIAMETER) {
+                    marbles[i].dist = marbles[i - 1].dist + MARBLE_DIAMETER;
+                }
+            }
+            for (let i = insertIdx - 1; i >= 0; i--) {
+                if (marbles[i].dist > marbles[i + 1].dist - MARBLE_DIAMETER) {
+                    marbles[i].dist = Math.max(0, marbles[i + 1].dist - MARBLE_DIAMETER);
+                }
+            }
+
+            checkMatchAt(insertIdx, 1);
+        }
+
+        // --- MAIN PHYSICS & GAME LOOP UPDATE ---
+        let dangerSoundCooldown = 0;
+        let powerupSpawnCooldown = 5.0;
+        let coinSpawnCooldown = 8.0;
+
+        function updateGame(dt) {
+            if (gameState !== 'PLAYING' && gameState !== 'SWALLOWING') return;
+
+            // Update timers
+            if (slowTimer > 0) slowTimer = Math.max(0, slowTimer - dt);
+            if (reverseTimer > 0) reverseTimer = Math.max(0, reverseTimer - dt);
+            if (laserTimer > 0) laserTimer = Math.max(0, laserTimer - dt);
+            if (frog.recoil > 0) frog.recoil = Math.max(0, frog.recoil - dt * 65);
+
+            // Spawn occasional power-up on random marble
+            powerupSpawnCooldown -= dt;
+            if (powerupSpawnCooldown <= 0 && marbles.length > 5 && gameState === 'PLAYING') {
+                powerupSpawnCooldown = 7 + Math.random() * 5;
+                const candidates = marbles.filter(m => !m.powerup);
+                if (candidates.length > 0) {
+                    const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+                    chosen.powerup = POWERUPS[Math.floor(Math.random() * POWERUPS.length)];
+                }
+            }
+
+            // Spawn occasional Golden Aztec Coin in corner spots
+            coinSpawnCooldown -= dt;
+            if (coinSpawnCooldown <= 0 && !bonusCoin && gameState === 'PLAYING') {
+                coinSpawnCooldown = 12 + Math.random() * 6;
+                const spots = [
+                    { x: 95, y: 95 },
+                    { x: LOGICAL_WIDTH - 95, y: 95 },
+                    { x: 95, y: LOGICAL_HEIGHT - 95 },
+                    { x: LOGICAL_WIDTH - 95, y: LOGICAL_HEIGHT - 95 }
+                ];
+                const spot = spots[Math.floor(Math.random() * spots.length)];
+                bonusCoin = { x: spot.x, y: spot.y, life: 7.5, spin: 0 };
+            }
+            if (bonusCoin) {
+                bonusCoin.life -= dt;
+                bonusCoin.spin += dt * 6;
+                if (bonusCoin.life <= 0) bonusCoin = null;
+            }
+
+            // 1. SWALLOWING STATE (When marbles reach the Golden Skull)
+            if (gameState === 'SWALLOWING') {
+                const swallowSpeed = 520;
+                for (let m of marbles) {
+                    m.dist += swallowSpeed * dt;
+                }
+                while (marbles.length > 0 && marbles[marbles.length - 1].dist >= track.totalLength) {
+                    marbles.pop();
+                    sfx.playClack();
+                }
+                if (marbles.length === 0) {
+                    lives--;
+                    updateHUD();
+                    if (lives > 0) {
+                        initLevel(currentLevelIdx, false);
+                    } else {
+                        showStatusModal(false);
+                    }
+                }
+                return;
+            }
+
+            // 2. SPAWN NEW MARBLES FROM TUNNEL IF NOT YET "ZUMA"
+            const lvl = LEVELS[currentLevelIdx];
+            if (!zumaAchieved) {
+                if (marbles.length === 0 || marbles[0].dist >= MARBLE_DIAMETER) {
+                    const firstDist = marbles.length > 0 ? marbles[0].dist - MARBLE_DIAMETER : 0;
+                    const avoid = marbles.length >= 2 && marbles[0].color === marbles[1].color ? marbles[0].color : null;
+                    marbles.unshift({
+                        id: marbleIdCounter++,
+                        dist: Math.max(0, firstDist),
+                        color: randomColor(avoid),
+                        powerup: null,
+                        vel: 0,
+                        attracting: false,
+                        comboStep: 1
+                    });
+                }
+            }
+
+            // 3. MOVE MARBLE SEGMENTS & HANDLE MAGNETIC GAP ATTRACTION
+            if (marbles.length > 0) {
+                // Determine propulsion speed of the rear-most segment connected to the tunnel
+                let pushSpeed = lvl.baseSpeed;
+                // Catch-up speed boost when very few marbles are on screen before Zuma
+                if (!zumaAchieved && marbles.length < 10) {
+                    pushSpeed *= 2.4;
+                }
+                if (slowTimer > 0) pushSpeed *= 0.35;
+                if (reverseTimer > 0) pushSpeed = -135;
+
+                // Move rear marble (index 0) if reverse is active OR if connected to tunnel
+                if (reverseTimer > 0) {
+                    // Pull the entire chain backward from the front or back
+                    for (let i = 0; i < marbles.length; i++) {
+                        marbles[i].dist = Math.max(0, marbles[i].dist + pushSpeed * dt);
+                    }
+                } else {
+                    // Normal forward drive from index 0
+                    marbles[0].dist += pushSpeed * dt;
+                }
+
+                // Traverse from rear to front to push touching marbles AND pull magnetic gaps
+                for (let i = 1; i < marbles.length; i++) {
+                    const prev = marbles[i - 1];
+                    const curr = marbles[i];
+                    const gap = curr.dist - prev.dist;
+
+                    if (gap < MARBLE_DIAMETER) {
+                        // Overlap! Push current marble forward
+                        const wasAttracting = curr.attracting;
+                        curr.dist = prev.dist + MARBLE_DIAMETER;
+                        curr.attracting = false;
+                        curr.vel = 0;
+
+                        // If they just slammed together from magnetic attraction, check chain reaction match!
+                        if (wasAttracting) {
+                            sfx.playClack();
+                            const step = curr.comboStep || 2;
+                            curr.comboStep = 1;
+                            if (checkMatchAt(i, step)) {
+                                break; // Re-evaluate next frame after splice
+                            }
+                        }
+                    } else if (gap > MARBLE_DIAMETER + 1.5) {
+                        // There is an open gap between prev (i-1) and curr (i)!
+                        if (prev.color === curr.color) {
+                            // Magnetic attraction! Pull curr and all marbles attached ahead of curr backward
+                            curr.attracting = true;
+                            curr.vel = Math.min(360, (curr.vel || 120) + 520 * dt);
+                            const pullDelta = curr.vel * dt;
+
+                            // Pull curr and its contiguous front segment backward
+                            curr.dist -= pullDelta;
+                            for (let j = i + 1; j < marbles.length; j++) {
+                                if (marbles[j].dist - marbles[j - 1].dist <= MARBLE_DIAMETER + pullDelta + 2) {
+                                    marbles[j].dist = marbles[j - 1].dist + MARBLE_DIAMETER;
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            // Check if gap just closed this frame
+                            if (curr.dist - prev.dist <= MARBLE_DIAMETER + 0.5) {
+                                curr.dist = prev.dist + MARBLE_DIAMETER;
+                                curr.attracting = false;
+                                curr.vel = 0;
+                                sfx.playClack();
+                                const step = curr.comboStep || 2;
+                                curr.comboStep = 1;
+                                if (checkMatchAt(i, step)) {
+                                    break;
+                                }
+                            }
+                        } else {
+                            // Different colors across gap: stopped segment waits until rear segment catches up
+                            curr.attracting = false;
+                            curr.vel = 0;
+                        }
+                    }
+                }
+            }
+
+            // 4. CHECK DANGER / SKULL REACHED
+            if (marbles.length > 0) {
+                const headDist = marbles[marbles.length - 1].dist;
+                if (headDist >= track.totalLength * 0.82) {
+                    dangerSoundCooldown -= dt;
+                    if (dangerSoundCooldown <= 0) {
+                        sfx.playDanger();
+                        dangerSoundCooldown = 0.55;
+                    }
+                }
+                if (headDist >= track.totalLength - 8) {
+                    gameState = 'SWALLOWING';
+                    addFloatingText(LOGICAL_WIDTH / 2, LOGICAL_HEIGHT / 2, '¡LA CALAVERA DEVORA EL CAMINO!', '#ef4444', 28);
+                    return;
+                }
+            } else if (zumaAchieved) {
+                // All marbles cleared after ZUMA! Level Complete!
+                showStatusModal(true);
+                return;
+            }
+
+            // 5. UPDATE SHOT BULLETS & COLLISIONS
+            for (let bIdx = bullets.length - 1; bIdx >= 0; bIdx--) {
+                const b = bullets[bIdx];
+                b.x += b.vx * dt;
+                b.y += b.vy * dt;
+
+                // Remove if off-screen
+                if (b.x < -30 || b.x > LOGICAL_WIDTH + 30 || b.y < -30 || b.y > LOGICAL_HEIGHT + 30) {
+                    bullets.splice(bIdx, 1);
+                    continue;
+                }
+
+                // Check collision with bonus coin
+                if (bonusCoin && Math.hypot(b.x - bonusCoin.x, b.y - bonusCoin.y) < MARBLE_RADIUS + 20) {
+                    score += 500;
+                    zumaProgress += 250;
+                    sfx.playMatch(3);
+                    spawnExplosion(bonusCoin.x, bonusCoin.y, '#facc15', 22);
+                    addFloatingText(bonusCoin.x, bonusCoin.y, '¡MONEDA SOLAR +500!', '#fde047', 24);
+                    bonusCoin = null;
+                    bullets.splice(bIdx, 1);
+                    updateHUD();
+                    continue;
+                }
+
+                // Check collision with marbles on track
+                let collidedIdx = -1;
+                let minDistSq = Infinity;
+
+                for (let mIdx = 0; mIdx < marbles.length; mIdx++) {
+                    const mPt = track.getPointAtDist(marbles[mIdx].dist);
+                    const dx = b.x - mPt.x;
+                    const dy = b.y - mPt.y;
+                    const dSq = dx * dx + dy * dy;
+                    const hitThreshold = (MARBLE_RADIUS * 1.92) ** 2;
+                    if (dSq <= hitThreshold && dSq < minDistSq) {
+                        minDistSq = dSq;
+                        collidedIdx = mIdx;
+                    }
+                }
+
+                if (collidedIdx !== -1) {
+                    bullets.splice(bIdx, 1);
+                    insertBulletAt(collidedIdx, b);
+                }
+            }
+
+            // 6. UPDATE PARTICLES & FLOATING TEXTS
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt;
+                p.alpha = Math.max(0, p.life * 2);
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y += ft.vy * dt;
+                ft.life -= dt;
+                ft.alpha = Math.min(1, ft.life * 1.5);
+                if (ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+        }
+
+        // --- DRAWING FUNCTIONS ---
+        function drawMarbleSphere(x, y, colorId, rotationAngle = 0, powerup = null, scale = 1) {
+            const typeObj = MARBLE_TYPES.find(t => t.id === colorId) || MARBLE_TYPES[0];
+            const r = MARBLE_RADIUS * scale;
+
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Drop shadow in groove
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            ctx.beginPath();
+            ctx.arc(2, 4, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3D Spherical Radial Gradient
+            const grad = ctx.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r);
+            grad.addColorStop(0, typeObj.light);
+            grad.addColorStop(0.55, typeObj.fill);
+            grad.addColorStop(1, typeObj.dark);
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Engraved Aztec Ring & Glyph (rotates as marble rolls!)
+            ctx.save();
+            ctx.rotate(rotationAngle);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.68, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Power-up badge or subtle tribal symbol
+            ctx.font = `${Math.floor(r * 0.85)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            if (powerup) {
+                // Glowing ring for power-up
+                ctx.strokeStyle = '#fde047';
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1);
+                const pIcon = powerup === 'bomb' ? '💣' : powerup === 'slow' ? '⏳' : powerup === 'reverse' ? '⏪' : '☀️';
+                ctx.fillText(pIcon, 0, 1);
+            } else {
+                ctx.globalAlpha = 0.72;
+                ctx.fillText(typeObj.glyph, 0, 1);
+            }
+            ctx.restore();
+
+            // Specular glossy highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.beginPath();
+            ctx.ellipse(-r * 0.3, -r * 0.32, r * 0.28, r * 0.16, -Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawGoldenSkull() {
+            if (!track) return;
+            const endPt = track.getPointAtDist(track.totalLength);
+            const headDist = marbles.length > 0 ? marbles[marbles.length - 1].dist : 0;
+            const dangerRatio = Math.max(0, (headDist - track.totalLength * 0.65) / (track.totalLength * 0.35));
+            const jawOpen = dangerRatio * 14;
+
+            ctx.save();
+            ctx.translate(endPt.x, endPt.y);
+            ctx.rotate(endPt.angle + Math.PI / 2);
+
+            // Outer golden aura when in danger
+            if (dangerRatio > 0.2) {
+                ctx.fillStyle = `rgba(239, 68, 68, ${0.25 + Math.sin(performance.now() * 0.015) * 0.15})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, 44, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Dark abyss hole inside skull mouth
+            ctx.fillStyle = '#090502';
+            ctx.beginPath();
+            ctx.arc(0, 4, 24, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Lower Jaw (slides outward as marbles approach)
+            ctx.fillStyle = '#b45309';
+            ctx.strokeStyle = '#fef08a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(-22, 6 + jawOpen * 0.5, 44, 16, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            // Upper Carved Aztec Golden Skull Cranium
+            const skullGrad = ctx.createLinearGradient(0, -34, 0, 12);
+            skullGrad.addColorStop(0, '#fef08a');
+            skullGrad.addColorStop(0.5, '#eab308');
+            skullGrad.addColorStop(1, '#92400e');
+            ctx.fillStyle = skullGrad;
+
+            ctx.beginPath();
+            ctx.arc(0, -8 - jawOpen * 0.4, 28, Math.PI * 0.85, Math.PI * 2.15);
+            ctx.lineTo(20, 8 - jawOpen * 0.4);
+            ctx.lineTo(-20, 8 - jawOpen * 0.4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Glowing Ruby Eyes
+            const eyeGlow = dangerRatio > 0.1 ? '#ef4444' : '#451a03';
+            ctx.fillStyle = eyeGlow;
+            ctx.beginPath();
+            ctx.arc(-10, -10 - jawOpen * 0.4, 5.5, 0, Math.PI * 2);
+            ctx.arc(10, -10 - jawOpen * 0.4, 5.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawEntranceTunnel() {
+            if (!track) return;
+            const startPt = track.getPointAtDist(0);
+            ctx.save();
+            ctx.translate(startPt.x, startPt.y);
+            ctx.rotate(startPt.angle);
+
+            ctx.fillStyle = '#292018';
+            ctx.strokeStyle = '#785a3c';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(-18, -26, 32, 52, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#090604';
+            ctx.beginPath();
+            ctx.arc(6, 0, 18, -Math.PI / 2, Math.PI / 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawStoneFrog() {
+            ctx.save();
+            ctx.translate(frog.x, frog.y);
+            ctx.rotate(frog.angle);
+
+            const recoilOffset = -frog.recoil;
+            ctx.translate(recoilOffset, 0);
+
+            // 1. GOLDEN SOLAR BEAM (Inspired by the Zuma Deluxe Cover Art!)
+            // Subtle aiming beam normally, blazing bright solar laser when Laser Power-up is active
+            const beamLen = laserTimer > 0 ? 520 : 195;
+            const beamWidth = laserTimer > 0 ? 28 : 16;
+            const beamGrad = ctx.createLinearGradient(25, 0, beamLen, 0);
+            if (laserTimer > 0) {
+                beamGrad.addColorStop(0, 'rgba(253, 224, 71, 0.85)');
+                beamGrad.addColorStop(0.5, 'rgba(249, 115, 22, 0.45)');
+                beamGrad.addColorStop(1, 'rgba(249, 115, 22, 0)');
+            } else {
+                beamGrad.addColorStop(0, 'rgba(253, 224, 71, 0.35)');
+                beamGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+            }
+            ctx.fillStyle = beamGrad;
+            ctx.beginPath();
+            ctx.moveTo(22, -4);
+            ctx.lineTo(beamLen, -beamWidth);
+            ctx.lineTo(beamLen, beamWidth);
+            ctx.lineTo(22, 4);
+            ctx.closePath();
+            ctx.fill();
+
+            // 2. FROG LEGS (Carved Jade/Stone)
+            ctx.fillStyle = '#4d5e3b';
+            ctx.strokeStyle = '#1f2918';
+            ctx.lineWidth = 2.5;
+            // Back legs
+            [-1, 1].forEach(side => {
+                ctx.beginPath();
+                ctx.ellipse(-18, side * 38, 16, 10, side * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                // Front hands
+                ctx.beginPath();
+                ctx.ellipse(16, side * 34, 13, 8, -side * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            });
+
+            // 3. FROG TONGUE & CURRENT MARBLE IN MOUTH
+            ctx.fillStyle = '#db7093';
+            ctx.beginPath();
+            ctx.ellipse(24, 0, 16, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw current ready marble in jaws
+            drawMarbleSphere(34, 0, frog.currentColor, 0, null, 0.92);
+
+            // 4. FROG MAIN CARVED STONE BODY
+            const bodyGrad = ctx.createRadialGradient(-5, 0, 8, 0, 0, 46);
+            bodyGrad.addColorStop(0, '#849b5c');
+            bodyGrad.addColorStop(0.65, '#4b5936');
+            bodyGrad.addColorStop(1, '#262e1b');
+
+            ctx.fillStyle = bodyGrad;
+            ctx.strokeStyle = '#181d10';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(-4, 0, 42, 38, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Aztec golden ornament markings on frog back
+            ctx.strokeStyle = '#eab308';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(-6, 0, 26, Math.PI * 0.65, Math.PI * 1.35);
+            ctx.stroke();
+
+            // 5. NEXT MARBLE COLOR GEM ON BACK OF FROG
+            const nextType = MARBLE_TYPES.find(t => t.id === frog.nextColor) || MARBLE_TYPES[0];
+            ctx.fillStyle = nextType.fill;
+            ctx.strokeStyle = '#fef08a';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(-20, 0, 11, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Specular glint on next color crystal
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            ctx.beginPath();
+            ctx.arc(-23, -3, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 6. BULGING FROG EYES Looking Forward
+            [-1, 1].forEach(side => {
+                ctx.fillStyle = '#6f824e';
+                ctx.beginPath();
+                ctx.arc(8, side * 20, 11, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#fef9c3';
+                ctx.beginPath();
+                ctx.arc(10, side * 20, 7.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#090d06';
+                ctx.beginPath();
+                ctx.arc(13, side * 20, 3.8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.restore();
+        }
+
+        function drawGame() {
+            // 1. Blit pre-rendered Temple & Track Background
+            ctx.drawImage(bgCanvas, 0, 0);
+
+            // 2. Draw Entrance Tunnel & Golden Skull
+            drawEntranceTunnel();
+            drawGoldenSkull();
+
+            // 3. Draw Bonus Golden Aztec Coin if active
+            if (bonusCoin) {
+                ctx.save();
+                ctx.translate(bonusCoin.x, bonusCoin.y);
+                const scaleX = Math.cos(bonusCoin.spin);
+                ctx.scale(scaleX, 1);
+                ctx.fillStyle = '#facc15';
+                ctx.strokeStyle = '#92400e';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = '#78350f';
+                ctx.font = 'bold 18px serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('☀️', 0, 1);
+                ctx.restore();
+            }
+
+            // 4. Draw Marbles on Track
+            for (let i = 0; i < marbles.length; i++) {
+                const m = marbles[i];
+                const pt = track.getPointAtDist(m.dist);
+                const rollAngle = m.dist / MARBLE_RADIUS;
+                drawMarbleSphere(pt.x, pt.y, m.color, rollAngle, m.powerup);
+            }
+
+            // 5. Draw Active Shot Bullets
+            for (const b of bullets) {
+                drawMarbleSphere(b.x, b.y, b.color, 0);
+            }
+
+            // 6. Draw Center Stone Frog
+            drawStoneFrog();
+
+            // 7. Draw Particles
+            for (const p of particles) {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 8. Draw Floating Score & Combo Texts
+            for (const ft of floatingTexts) {
+                ctx.save();
+                ctx.globalAlpha = ft.alpha;
+                ctx.font = `900 ${ft.size}px 'Fredoka', sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#1c1008';
+                ctx.lineWidth = 5;
+                ctx.strokeText(ft.text, ft.x, ft.y);
+                ctx.fillStyle = ft.color;
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            }
+        }
+
+        // --- MODAL MANAGEMENT ---
+        function showStatusModal(victory) {
+            gameState = victory ? 'VICTORY' : 'GAMEOVER';
+            const modal = document.getElementById('status-modal');
+            const icon = document.getElementById('modal-icon');
+            const title = document.getElementById('modal-title');
+            const desc = document.getElementById('modal-desc');
+            const scoreEl = document.getElementById('modal-score');
+            const comboEl = document.getElementById('modal-combo');
+            const actionBtn = document.getElementById('btn-modal-action');
+
+            scoreEl.textContent = score.toLocaleString();
+            comboEl.textContent = `x${maxCombo}`;
+
+            if (victory) {
+                sfx.playZumaChant();
+                icon.textContent = '🏆';
+                title.textContent = '¡TEMPLO SUPERADO!';
+                desc.textContent = `Has conquistado ${LEVELS[currentLevelIdx].name}. ¡El Sol te bendice!`;
+                actionBtn.textContent = 'Siguiente Templo ➡️';
+            } else {
+                icon.textContent = '💀';
+                title.textContent = 'CALAVERA SACIADA';
+                desc.textContent = 'Las esferas alcanzaron la Calavera Dorada. ¿Intentar de nuevo?';
+                actionBtn.textContent = 'Reintentar 🔄';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // --- INPUT LISTENERS (Mouse, Touch & Keyboard) ---
+        function getCanvasCoords(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (clientX - rect.left) * (LOGICAL_WIDTH / rect.width),
+                y: (clientY - rect.top) * (LOGICAL_HEIGHT / rect.height)
+            };
+        }
+
+        function aimFrogAt(clientX, clientY) {
+            const pt = getCanvasCoords(clientX, clientY);
+            frog.angle = Math.atan2(pt.y - frog.y, pt.x - frog.x);
+            return pt;
+        }
+
+        canvas.addEventListener('pointermove', (e) => {
+            aimFrogAt(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if (gameState !== 'PLAYING') return;
+            if (e.button === 2) {
+                e.preventDefault();
+                swapFrogMarbles();
+                return;
+            }
+            const pt = aimFrogAt(e.clientX, e.clientY);
+            // Clicking directly on the center of the frog swaps marbles (convenient on touchscreens!)
+            if (Math.hypot(pt.x - frog.x, pt.y - frog.y) < 38) {
+                swapFrogMarbles();
+            } else {
+                shootMarble();
+            }
+        });
+
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                swapFrogMarbles();
+            }
+        });
+
+        // --- UI BUTTONS ---
+        document.getElementById('btn-swap').addEventListener('click', () => swapFrogMarbles());
+
+        document.getElementById('btn-sound').addEventListener('click', (e) => {
+            sfx.enabled = !sfx.enabled;
+            e.currentTarget.textContent = sfx.enabled ? '🔊' : '🔇';
+        });
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            const menuOverlay = document.getElementById('menu-overlay');
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                menuOverlay.classList.remove('hidden');
+                document.getElementById('btn-start-game').textContent = 'Continuar Partida';
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                menuOverlay.classList.add('hidden');
+            }
+        });
+
+        // Level Select Buttons in Menu
+        const lvlButtons = document.querySelectorAll('.lvl-select-btn');
+        lvlButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentLevelIdx = parseInt(btn.getAttribute('data-level'), 10);
+                lvlButtons.forEach(b => {
+                    b.className = 'lvl-select-btn py-2 px-2 rounded-xl border-2 border-amber-700/60 bg-stone-800/80 text-amber-300/80 font-bold text-xs sm:text-sm';
+                });
+                btn.className = 'lvl-select-btn py-2 px-2 rounded-xl border-2 border-yellow-400 bg-amber-900/70 text-yellow-200 font-bold text-xs sm:text-sm shadow';
+                // Update preview background behind menu
+                initLevel(currentLevelIdx, true);
+                gameState = 'MENU';
+            });
+        });
+
+        document.getElementById('btn-start-game').addEventListener('click', () => {
+            sfx.init();
+            document.getElementById('menu-overlay').classList.add('hidden');
+            if (gameState !== 'PAUSED') {
+                initLevel(currentLevelIdx, true);
+            } else {
+                gameState = 'PLAYING';
+            }
+        });
+
+        document.getElementById('btn-modal-action').addEventListener('click', () => {
+            document.getElementById('status-modal').classList.add('hidden');
+            if (gameState === 'VICTORY') {
+                initLevel((currentLevelIdx + 1) % LEVELS.length, false);
+            } else {
+                initLevel(currentLevelIdx, true);
+            }
+        });
+
+        document.getElementById('btn-modal-menu').addEventListener('click', () => {
+            document.getElementById('status-modal').classList.add('hidden');
+            document.getElementById('btn-start-game').textContent = '¡Jugar Ahora!';
+            document.getElementById('menu-overlay').classList.remove('hidden');
+            gameState = 'MENU';
+        });
+
+        // --- MAIN ANIMATION LOOP ---
+        let lastTime = performance.now();
+        function gameLoop(now) {
+            const dt = Math.min(0.05, (now - lastTime) / 1000);
+            lastTime = now;
+
+            updateGame(dt);
+            drawGame();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function () {
+            resizeCanvas();
+            initLevel(0, true);
+            gameState = 'MENU';
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
