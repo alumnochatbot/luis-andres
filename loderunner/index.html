@@ -50,14 +50,14 @@
         <div id="screen-overlay" class="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-6 text-center z-20">
             <h1 class="text-2xl md:text-4xl text-cyan-400 mb-4 tracking-wider animate-pulse">LODE RUNNER</h1>
             <p id="overlay-msg" class="text-xs md:text-sm text-gray-300 mb-6 max-w-md leading-relaxed">
-                Collect all gold bars and avoid the guards! Dig holes to trap enemies. Use ladders and bars to escape.
+                Collect all gold bars and avoid the guards! Dig holes to trap enemies. Use ladders, bars, and jumps to escape.
             </p>
             <div id="instructions" class="text-[10px] md:text-xs text-yellow-300 mb-6 space-y-2 text-left bg-gray-900 p-4 rounded border border-gray-700">
                 <p>⌨️ <b>CONTROLS:</b></p>
                 <p>• Arrows / WASD: Move, Climb, Drop</p>
-                <p>• Z / J: Dig Left</p>
-                <p>• X / K: Dig Right</p>
-                <p>• R: Restart Level / Space: Start</p>
+                <p>• Space / W / Up: Jump</p>
+                <p>• Z / J: Dig Left | X / K: Dig Right</p>
+                <p>• R: Restart Level</p>
             </div>
             <button id="start-btn" class="btn-arcade bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-bold px-6 py-3 rounded-lg text-xs md:text-sm cursor-pointer border-2 border-cyan-300">
                 START GAME
@@ -76,6 +76,7 @@
             <button id="btn-right" class="btn-arcade bg-gray-800 text-cyan-400 rounded flex items-center justify-center text-lg">➡️</button>
         </div>
         <div class="flex flex-col justify-center space-y-2">
+            <button id="btn-jump" class="btn-arcade bg-cyan-600 hover:bg-cyan-500 text-white rounded p-2 text-[10px] font-bold">JUMP 🦘</button>
             <div class="grid grid-cols-2 gap-2">
                 <button id="btn-dig-left" class="btn-arcade bg-amber-700 hover:bg-amber-600 text-white rounded p-3 text-[10px] font-bold">DIG ⬅️</button>
                 <button id="btn-dig-right" class="btn-arcade bg-amber-700 hover:bg-amber-600 text-white rounded p-3 text-[10px] font-bold">DIG ➡️</button>
@@ -265,7 +266,8 @@
             isClimbing: false,
             isHanging: false,
             isFalling: false,
-            carryingGold: false
+            carryingGold: false,
+            jumpSpeed: -5.2
         };
 
         let guards = [];
@@ -276,6 +278,7 @@
             right: false,
             up: false,
             down: false,
+            jump: false,
             digLeft: false,
             digRight: false
         };
@@ -370,7 +373,7 @@
                 if (gameState === 'VICTORY' || gameState === 'GAMEOVER') {
                     startGame();
                 } else if (gameState === 'LEVELCLEAR') {
-                    loadLevel(currentLevelIndex);
+                    loadLevel(currentLevelIndex + 1);
                     gameState = 'PLAYING';
                     document.getElementById('screen-overlay').classList.add('hidden');
                 }
@@ -383,8 +386,12 @@
             window.addEventListener('keydown', e => {
                 if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
                 if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
-                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                    keys.up = true;
+                    keys.jump = true;
+                }
                 if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
+                if (e.key === ' ') keys.jump = true;
                 if (e.key === 'z' || e.key === 'Z' || e.key === 'j' || e.key === 'J') digLeft();
                 if (e.key === 'x' || e.key === 'X' || e.key === 'k' || e.key === 'K') digRight();
                 if (e.key === 'r' || e.key === 'R') resetPlayerPosition();
@@ -394,8 +401,12 @@
             window.addEventListener('keyup', e => {
                 if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
                 if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
-                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                    keys.up = false;
+                    keys.jump = false;
+                }
                 if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
+                if (e.key === ' ') keys.jump = false;
             });
 
             // Mobile buttons
@@ -403,6 +414,7 @@
             bindTouchButton('btn-down', 'down');
             bindTouchButton('btn-left', 'left');
             bindTouchButton('btn-right', 'right');
+            bindTouchButton('btn-jump', 'jump');
             
             document.getElementById('btn-dig-left').addEventListener('click', () => digLeft());
             document.getElementById('btn-dig-right').addEventListener('click', () => digRight());
@@ -411,6 +423,7 @@
 
         function bindTouchButton(id, keyName) {
             const el = document.getElementById(id);
+            if (!el) return;
             el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
             el.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
             el.addEventListener('mousedown', () => { keys[keyName] = true; });
@@ -459,7 +472,7 @@
                 let h = diggedHoles[i];
                 h.timer--;
                 if (h.timer <= 0) {
-                    map[h.y][h.x] = 1; // Restore brick
+                    if (map[h.y]) map[h.y][h.x] = 1; // Restore brick safely
                     // Check if player or guard is entombed
                     if (checkCollisionBox(player.x, player.y, h.x * TILE_SIZE, h.y * TILE_SIZE)) {
                         playerDeath();
@@ -484,7 +497,6 @@
             let supported = isSolidBelow(player.x, player.y) || onLadder || onBar;
 
             player.vx = 0;
-            player.vy = 0;
 
             if (keys.left) {
                 player.vx = -player.speed;
@@ -495,20 +507,31 @@
             }
 
             if (onLadder) {
+                player.vy = 0;
                 if (keys.up) player.vy = -player.speed;
                 else if (keys.down) player.vy = player.speed;
+                else if (keys.jump) {
+                    player.vy = player.jumpSpeed;
+                }
             } else if (onBar) {
+                player.vy = 0;
                 if (keys.up) {
                     player.vy = -player.speed;
                 } else if (!supported) {
                     player.vy = player.speed; // Fall if letting go of bar
                 }
+                if (keys.jump) {
+                    player.vy = player.jumpSpeed;
+                }
             } else {
                 if (!supported) {
-                    player.vy = player.speed * 1.5; // Gravity
+                    player.vy += 0.3; // Gravity acceleration
+                    if (player.vy > 4.5) player.vy = 4.5; // Terminal velocity
                 } else {
-                    if (keys.up && isLadder(player.x, player.y - 2)) {
-                        player.vy = -player.speed;
+                    player.vy = 0;
+                    if (keys.jump) {
+                        player.vy = player.jumpSpeed;
+                        sfx.fall();
                     }
                 }
             }
@@ -520,7 +543,7 @@
             let curCol = Math.floor((player.x + TILE_SIZE / 2) / TILE_SIZE);
             let curRow = Math.floor((player.y + TILE_SIZE / 2) / TILE_SIZE);
             if (curCol >= 0 && curCol < COLS && curRow >= 0 && curRow < ROWS) {
-                if (map[curRow][curCol] === 5) {
+                if (map[curRow] && map[curRow][curCol] === 5) {
                     map[curRow][curCol] = 0;
                     goldCollected++;
                     score += 250;
@@ -608,7 +631,7 @@
             for (let r = top; r <= bottom; r++) {
                 for (let c = left; c <= right; c++) {
                     if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-                        let tile = map[r][c];
+                        let tile = map[r] ? map[r][c] : 0;
                         // Solid brick (1) or concrete (2) are impassable
                         if (tile === 1 || tile === 2) {
                             return true;
@@ -623,7 +646,7 @@
             let cx = Math.floor((x + TILE_SIZE / 2) / TILE_SIZE);
             let cy = Math.floor((y + TILE_SIZE / 2) / TILE_SIZE);
             if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
-                return map[cy][cx] === 3;
+                return map[cy] && map[cy][cx] === 3;
             }
             return false;
         }
@@ -632,7 +655,7 @@
             let cx = Math.floor((x + TILE_SIZE / 2) / TILE_SIZE);
             let cy = Math.floor((y + TILE_SIZE / 2) / TILE_SIZE);
             if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
-                return map[cy][cx] === 4;
+                return map[cy] && map[cy][cx] === 4;
             }
             return false;
         }
@@ -641,7 +664,7 @@
             let cx = Math.floor((x + TILE_SIZE / 2) / TILE_SIZE);
             let cy = Math.floor((y + TILE_SIZE + 2) / TILE_SIZE);
             if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
-                let tile = map[cy][cx];
+                let tile = map[cy] ? map[cy][cx] : 0;
                 return tile === 1 || tile === 2;
             }
             return false;
@@ -681,8 +704,11 @@
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            if (!map || map.length === 0) return;
+
             // Draw Map Tiles
             for (let r = 0; r < ROWS; r++) {
+                if (!map[r]) continue;
                 for (let c = 0; c < COLS; c++) {
                     let tile = map[r][c];
                     let x = c * TILE_SIZE;
