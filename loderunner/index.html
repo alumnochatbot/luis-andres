@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lode Runner Retro Arcade</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', monospace, sans-serif;
+            background-color: #0d1117;
+            color: #f0f6fc;
+            user-select: none;
+            touch-action: none;
+        }
+        .arcade-shadow {
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.2), inset 0 0 15px rgba(0, 0, 0, 0.8);
+        }
+        .btn-arcade {
+            transition: all 0.1s ease;
+            box-shadow: 0 4px 0 #1f2937, 0 6px 10px rgba(0,0,0,0.4);
+        }
+        .btn-arcade:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #1f2937, 0 2px 5px rgba(0,0,0,0.4);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between min-h-screen p-2 md:p-6 overflow-hidden">
+
+    <!-- Header / HUD -->
+    <header class="w-full max-w-4xl flex flex-wrap justify-between items-center bg-gray-900 border-2 border-cyan-500 rounded-xl p-4 mb-2 arcade-shadow">
+        <div class="flex items-center space-x-4 mb-2 md:mb-0">
+            <span class="text-cyan-400 text-xs md:text-sm">SCORE: <span id="score-display" class="text-white">0</span></span>
+            <span class="text-yellow-400 text-xs md:text-sm">GOLD: <span id="gold-display" class="text-white">0/0</span></span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <span class="text-pink-500 text-xs md:text-sm">LIVES: <span id="lives-display" class="text-white">3</span></span>
+            <span class="text-green-400 text-xs md:text-sm">LEVEL: <span id="level-display" class="text-white">1</span></span>
+        </div>
+    </header>
+
+    <!-- Game Container / Canvas -->
+    <main class="relative w-full max-w-4xl flex-grow flex items-center justify-center bg-black border-4 border-cyan-600 rounded-xl overflow-hidden arcade-shadow mb-2" style="aspect-ratio: 28 / 16;">
+        <canvas id="gameCanvas" class="w-full h-full block bg-black"></canvas>
+
+        <!-- Overlay Screens -->
+        <div id="screen-overlay" class="absolute inset-0 bg-black/85 flex flex-col items-center justify-center p-6 text-center z-20">
+            <h1 class="text-2xl md:text-4xl text-cyan-400 mb-4 tracking-wider animate-pulse">LODE RUNNER</h1>
+            <p id="overlay-msg" class="text-xs md:text-sm text-gray-300 mb-6 max-w-md leading-relaxed">
+                Collect all gold bars and avoid the guards! Dig holes to trap enemies. Use ladders and bars to escape.
+            </p>
+            <div id="instructions" class="text-[10px] md:text-xs text-yellow-300 mb-6 space-y-2 text-left bg-gray-900 p-4 rounded border border-gray-700">
+                <p>⌨️ <b>CONTROLS:</b></p>
+                <p>• Arrows / WASD: Move, Climb, Drop</p>
+                <p>• Z / J: Dig Left</p>
+                <p>• X / K: Dig Right</p>
+                <p>• R: Restart Level / Space: Start</p>
+            </div>
+            <button id="start-btn" class="btn-arcade bg-cyan-500 hover:bg-cyan-400 text-gray-950 font-bold px-6 py-3 rounded-lg text-xs md:text-sm cursor-pointer border-2 border-cyan-300">
+                START GAME
+            </button>
+        </div>
+    </main>
+
+    <!-- Mobile Virtual Controls -->
+    <footer class="w-full max-w-4xl grid grid-cols-2 gap-4 bg-gray-900 border-2 border-cyan-500 rounded-xl p-3 md:hidden">
+        <div class="grid grid-cols-3 gap-1 w-36 h-36 mx-auto">
+            <div></div>
+            <button id="btn-up" class="btn-arcade bg-gray-800 text-cyan-400 rounded flex items-center justify-center text-lg">⬆️</button>
+            <div></div>
+            <button id="btn-left" class="btn-arcade bg-gray-800 text-cyan-400 rounded flex items-center justify-center text-lg">⬅️</button>
+            <button id="btn-down" class="btn-arcade bg-gray-800 text-cyan-400 rounded flex items-center justify-center text-lg">⬇️</button>
+            <button id="btn-right" class="btn-arcade bg-gray-800 text-cyan-400 rounded flex items-center justify-center text-lg">➡️</button>
+        </div>
+        <div class="flex flex-col justify-center space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btn-dig-left" class="btn-arcade bg-amber-700 hover:bg-amber-600 text-white rounded p-3 text-[10px] font-bold">DIG ⬅️</button>
+                <button id="btn-dig-right" class="btn-arcade bg-amber-700 hover:bg-amber-600 text-white rounded p-3 text-[10px] font-bold">DIG ➡️</button>
+            </div>
+            <button id="btn-restart" class="btn-arcade bg-red-700 hover:bg-red-600 text-white rounded p-2 text-[10px] font-bold">RESTART</button>
+        </div>
+    </footer>
+
+    <!-- Audio & Game Logic -->
+    <script>
+        // Web Audio Synthesizer for Retro Sound FX
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            playTone(freq, duration, type = 'square', vol = 0.1) {
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
+            }
+            gold() {
+                this.init();
+                this.playTone(587.33, 0.08, 'square', 0.1);
+                setTimeout(() => this.playTone(880, 0.12, 'square', 0.1), 80);
+            }
+            dig() {
+                this.init();
+                this.playTone(150, 0.15, 'sawtooth', 0.15);
+            }
+            fall() {
+                this.init();
+                this.playTone(300, 0.2, 'triangle', 0.1);
+            }
+            die() {
+                this.init();
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.4);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.4);
+                } catch(e) {}
+            }
+            win() {
+                this.init();
+                const notes = [440, 554.37, 659.25, 880];
+                notes.forEach((n, idx) => {
+                    setTimeout(() => this.playTone(n, 0.15, 'square', 0.1), idx * 120);
+                });
+            }
+        }
+
+        const sfx = new SoundFX();
+
+        // Game Configuration & Constants
+        const COLS = 28;
+        const ROWS = 16;
+        const TILE_SIZE = 24; // Will be scaled on canvas
+
+        // Tile types:
+        // 0: Empty
+        // 1: Diggable Brick
+        // 2: Solid Concrete
+        // 3: Ladder
+        // 4: Hand-hold Bar (Rope)
+        // 5: Gold bar
+
+        // Procedural Level Generator for 60 levels
+        function generateLevel(index) {
+            let map = [];
+            for (let r = 0; r < ROWS; r++) {
+                let row = [];
+                for (let c = 0; c < COLS; c++) {
+                    if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
+                        row.push(2); // Concrete border
+                    } else {
+                        row.push(0); // Empty
+                    }
+                }
+                map.push(row);
+            }
+
+            // Create solid brick floors at specific rows with gaps
+            const floorRows = [2, 5, 8, 11, 14];
+            floorRows.forEach(r => {
+                for (let c = 1; c < COLS - 1; c++) {
+                    if (!((c + index * 3) % 7 === 0 || (c - index) % 9 === 0)) {
+                        map[r][c] = 1; // Diggable brick
+                    }
+                }
+            });
+
+            // Create ladders strategically
+            const ladderCols = [5, 10, 15, 20, 24];
+            ladderCols.forEach((c, idx) => {
+                if (c < COLS - 1) {
+                    let startR = (idx % 2 === 0) ? 2 : 5;
+                    let endR = ROWS - 2;
+                    for (let r = startR; r <= endR; r++) {
+                        if (map[r][c] !== 2) {
+                            map[r][c] = 3; // Ladder
+                        }
+                    }
+                }
+            });
+
+            // Add bars (ropes) in higher levels
+            if (index > 5) {
+                for (let c = 8; c < 20; c++) {
+                    if (map[7][c] === 0) map[7][c] = 4;
+                }
+            }
+            if (index > 20) {
+                for (let c = 3; c < 12; c++) {
+                    if (map[4][c] === 0) map[4][c] = 4;
+                }
+            }
+
+            // Place Gold Bars (5)
+            let goldCount = 4 + Math.min(12, Math.floor(index / 3));
+            let placed = 0;
+            let attempts = 0;
+            while (placed < goldCount && attempts < 200) {
+                attempts++;
+                let gr = floorRows[Math.floor(Math.random() * floorRows.length)] - 1;
+                let gc = Math.floor(Math.random() * (COLS - 2)) + 1;
+                if (gr > 0 && map[gr][gc] === 0 && map[gr + 1][gc] === 1) {
+                    map[gr][gc] = 5;
+                    placed++;
+                }
+            }
+
+            if (placed < 3) {
+                map[1][2] = 5;
+                map[4][8] = 5;
+                map[7][18] = 5;
+                if (goldCount >= 4) map[10][22] = 5;
+            }
+
+            return map;
+        }
+
+        // Generate all 60 levels programmatically
+        const levels = [];
+        for (let i = 0; i < 60; i++) {
+            levels.push(generateLevel(i));
+        }
+
+        // Game State Variables
+        let canvas, ctx;
+        let score = 0;
+        let lives = 3;
+        let currentLevelIndex = 0;
+        let goldTotal = 0;
+        let goldCollected = 0;
+        let gameState = 'START'; // START, PLAYING, GAMEOVER, VICTORY, LEVELCLEAR
+        let map = [];
+        let diggedHoles = []; // {x, y, timer}
+
+        let player = {
+            x: 0, y: 0,
+            vx: 0, vy: 0,
+            speed: 2,
+            facing: 1,
+            isClimbing: false,
+            isHanging: false,
+            isFalling: false,
+            carryingGold: false
+        };
+
+        let guards = [];
+
+        // Input state
+        const keys = {
+            left: false,
+            right: false,
+            up: false,
+            down: false,
+            digLeft: false,
+            digRight: false
+        };
+
+        // Initialize Canvas & Event Listeners
+        window.onload = () => {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            setupInputs();
+
+            document.getElementById('start-btn').addEventListener('click', startGame);
+
+            // Start render loop
+            requestAnimationFrame(gameLoop);
+        };
+
+        function resizeCanvas() {
+            canvas.width = COLS * TILE_SIZE;
+            canvas.height = ROWS * TILE_SIZE;
+        }
+
+        function startGame() {
+            score = 0;
+            lives = 3;
+            currentLevelIndex = 0;
+            loadLevel(currentLevelIndex);
+            gameState = 'PLAYING';
+            document.getElementById('screen-overlay').classList.add('hidden');
+        }
+
+        function loadLevel(index) {
+            if (index >= levels.length) {
+                gameState = 'VICTORY';
+                sfx.win();
+                showOverlay("VICTORY!", "You completed all 60 levels and mastered Lode Runner!", "PLAY AGAIN");
+                return;
+            }
+            currentLevelIndex = index;
+            const template = levels[index];
+            map = template.map(row => [...row]);
+            diggedHoles = [];
+            guards = [];
+            goldCollected = 0;
+
+            // Count total gold and spawn player / guards
+            goldTotal = 0;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (map[r][c] === 5) {
+                        goldTotal++;
+                    } else if (map[r][c] === 6) { 
+                        map[r][c] = 0;
+                    }
+                }
+            }
+
+            // Set Player Start Position
+            player.x = 2 * TILE_SIZE;
+            player.y = (ROWS - 3) * TILE_SIZE;
+            player.vx = 0;
+            player.vy = 0;
+
+            // Spawn Guards based on level index (scaling count and speed)
+            let guardCount = 1 + Math.min(4, Math.floor(index / 10));
+            for (let g = 0; g < guardCount; g++) {
+                let startX = (COLS - 3 - g * 4) * TILE_SIZE;
+                let startY = (1 + (g % 3) * 3) * TILE_SIZE;
+                guards.push({ 
+                    x: startX, 
+                    y: startY, 
+                    vx: 0, 
+                    vy: 0, 
+                    trappedTimer: 0, 
+                    facing: -1,
+                    speedMultiplier: 0.6 + Math.min(0.4, index * 0.005)
+                });
+            }
+
+            updateHUD();
+        }
+
+        function showOverlay(title, msg, btnText) {
+            const overlay = document.getElementById('screen-overlay');
+            overlay.querySelector('h1').innerText = title;
+            document.getElementById('overlay-msg').innerText = msg;
+            const btn = document.getElementById('start-btn');
+            btn.innerText = btnText;
+            btn.onclick = () => {
+                if (gameState === 'VICTORY' || gameState === 'GAMEOVER') {
+                    startGame();
+                } else if (gameState === 'LEVELCLEAR') {
+                    loadLevel(currentLevelIndex);
+                    gameState = 'PLAYING';
+                    document.getElementById('screen-overlay').classList.add('hidden');
+                }
+            };
+            overlay.classList.remove('hidden');
+        }
+
+        // Input Handling
+        function setupInputs() {
+            window.addEventListener('keydown', e => {
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
+                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
+                if (e.key === 'z' || e.key === 'Z' || e.key === 'j' || e.key === 'J') digLeft();
+                if (e.key === 'x' || e.key === 'X' || e.key === 'k' || e.key === 'K') digRight();
+                if (e.key === 'r' || e.key === 'R') resetPlayerPosition();
+                if (e.key === ' ' && gameState === 'START') startGame();
+            });
+
+            window.addEventListener('keyup', e => {
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
+                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
+            });
+
+            // Mobile buttons
+            bindTouchButton('btn-up', 'up');
+            bindTouchButton('btn-down', 'down');
+            bindTouchButton('btn-left', 'left');
+            bindTouchButton('btn-right', 'right');
+            
+            document.getElementById('btn-dig-left').addEventListener('click', () => digLeft());
+            document.getElementById('btn-dig-right').addEventListener('click', () => digRight());
+            document.getElementById('btn-restart').addEventListener('click', () => resetPlayerPosition());
+        }
+
+        function bindTouchButton(id, keyName) {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
+            el.addEventListener('mousedown', () => { keys[keyName] = true; });
+            el.addEventListener('mouseup', () => { keys[keyName] = false; });
+        }
+
+        // Digging Mechanics
+        function digLeft() {
+            if (gameState !== 'PLAYING') return;
+            let tileX = Math.floor((player.x + TILE_SIZE / 2) / TILE_SIZE) - 1;
+            let tileY = Math.floor((player.y + TILE_SIZE + 2) / TILE_SIZE);
+            digTile(tileX, tileY);
+        }
+
+        function digRight() {
+            if (gameState !== 'PLAYING') return;
+            let tileX = Math.floor((player.x + TILE_SIZE / 2) / TILE_SIZE) + 1;
+            let tileY = Math.floor((player.y + TILE_SIZE + 2) / TILE_SIZE);
+            digTile(tileX, tileY);
+        }
+
+        function digTile(tx, ty) {
+            if (tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS) {
+                // Can only dig brick (1) if there's solid space or empty above it
+                if (map[ty][tx] === 1) {
+                    // Check if block above is clear enough or valid
+                    map[ty][tx] = 0;
+                    sfx.dig();
+                    diggedHoles.push({ x: tx, y: ty, timer: 240 }); // ~4 seconds at 60fps
+                }
+            }
+        }
+
+        // Main Game Loop
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            // --- Update Holes Timer ---
+            for (let i = diggedHoles.length - 1; i >= 0; i--) {
+                let h = diggedHoles[i];
+                h.timer--;
+                if (h.timer <= 0) {
+                    map[h.y][h.x] = 1; // Restore brick
+                    // Check if player or guard is entombed
+                    if (checkCollisionBox(player.x, player.y, h.x * TILE_SIZE, h.y * TILE_SIZE)) {
+                        playerDeath();
+                    }
+                    guards.forEach(g => {
+                        if (checkCollisionBox(g.x, g.y, h.x * TILE_SIZE, h.y * TILE_SIZE)) {
+                            g.x = 2 * TILE_SIZE;
+                            g.y = 1 * TILE_SIZE; // Respawn guard
+                            g.trappedTimer = 0;
+                        }
+                    });
+                    diggedHoles.splice(i, 1);
+                }
+            }
+
+            // --- Player Physics & Movement ---
+            let pGridX = Math.floor((player.x + TILE_SIZE / 2) / TILE_SIZE);
+            let pGridY = Math.floor((player.y + TILE_SIZE / 2) / TILE_SIZE);
+
+            let onLadder = isLadder(player.x, player.y);
+            let onBar = isBar(player.x, player.y);
+            let supported = isSolidBelow(player.x, player.y) || onLadder || onBar;
+
+            player.vx = 0;
+            player.vy = 0;
+
+            if (keys.left) {
+                player.vx = -player.speed;
+                player.facing = -1;
+            } else if (keys.right) {
+                player.vx = player.speed;
+                player.facing = 1;
+            }
+
+            if (onLadder) {
+                if (keys.up) player.vy = -player.speed;
+                else if (keys.down) player.vy = player.speed;
+            } else if (onBar) {
+                if (keys.up) {
+                    player.vy = -player.speed;
+                } else if (!supported) {
+                    player.vy = player.speed; // Fall if letting go of bar
+                }
+            } else {
+                if (!supported) {
+                    player.vy = player.speed * 1.5; // Gravity
+                } else {
+                    if (keys.up && isLadder(player.x, player.y - 2)) {
+                        player.vy = -player.speed;
+                    }
+                }
+            }
+
+            // Apply player movement with collision
+            moveEntity(player);
+
+            // Gold Collection Check
+            let curCol = Math.floor((player.x + TILE_SIZE / 2) / TILE_SIZE);
+            let curRow = Math.floor((player.y + TILE_SIZE / 2) / TILE_SIZE);
+            if (curCol >= 0 && curCol < COLS && curRow >= 0 && curRow < ROWS) {
+                if (map[curRow][curCol] === 5) {
+                    map[curRow][curCol] = 0;
+                    goldCollected++;
+                    score += 250;
+                    sfx.gold();
+                    updateHUD();
+
+                    if (goldCollected >= goldTotal) {
+                        gameState = 'LEVELCLEAR';
+                        sfx.win();
+                        showOverlay("LEVEL CLEARED!", `Fantastic job! Score: ${score}`, "NEXT LEVEL");
+                    }
+                }
+            }
+
+            // --- Guards AI & Movement ---
+            guards.forEach(g => {
+                let gGridX = Math.floor((g.x + TILE_SIZE / 2) / TILE_SIZE);
+                let gGridY = Math.floor((g.y + TILE_SIZE / 2) / TILE_SIZE);
+
+                // Trapped in hole check
+                let currentTile = map[gGridY] ? map[gGridY][gGridX] : 0;
+                let inAHole = diggedHoles.some(h => h.x === gGridX && h.y === gGridY);
+
+                if (inAHole) {
+                    g.trappedTimer++;
+                    if (g.trappedTimer > 180) { // climb out time
+                        g.trappedTimer = 0;
+                    }
+                    return; // Can't move while trapped
+                }
+
+                // Basic pursuit AI towards player
+                let gOnLadder = isLadder(g.x, g.y);
+                let gOnBar = isBar(g.x, g.y);
+                let gSupported = isSolidBelow(g.x, g.y) || gOnLadder || gOnBar;
+
+                g.vx = 0;
+                g.vy = 0;
+
+                if (player.x < g.x) g.vx = -player.speed * g.speedMultiplier;
+                else if (player.x > g.x) g.vx = player.speed * g.speedMultiplier;
+
+                if (gOnLadder) {
+                    if (player.y < g.y) g.vy = -player.speed * g.speedMultiplier;
+                    else if (player.y > g.y) g.vy = player.speed * g.speedMultiplier;
+                } else if (!gSupported) {
+                    g.vy = player.speed * 1.5;
+                } else if (Math.random() < 0.05 && isLadder(g.x, g.y - TILE_SIZE)) {
+                    g.vy = -player.speed * g.speedMultiplier;
+                }
+
+                moveEntity(g);
+
+                // Guard-Player Collision Check
+                if (checkCollisionBox(player.x, player.y, g.x, g.y)) {
+                    playerDeath();
+                }
+            });
+        }
+
+        // Entity Collision & Movement Helper
+        function moveEntity(ent) {
+            // Horizontal check
+            let nextX = ent.x + ent.vx;
+            if (!checkCollisionRect(nextX, ent.y)) {
+                ent.x = nextX;
+            }
+            // Vertical check
+            let nextY = ent.y + ent.vy;
+            if (!checkCollisionRect(ent.x, nextY)) {
+                ent.y = nextY;
+            }
+        }
+
+        function checkCollisionRect(x, y) {
+            // Check boundaries
+            if (x < 0 || x + TILE_SIZE > COLS * TILE_SIZE || y < 0 || y + TILE_SIZE > ROWS * TILE_SIZE) return true;
+
+            // Check 4 corners of the entity box
+            let left = Math.floor(x / TILE_SIZE);
+            let right = Math.floor((x + TILE_SIZE - 2) / TILE_SIZE);
+            let top = Math.floor(y / TILE_SIZE);
+            let bottom = Math.floor((y + TILE_SIZE - 2) / TILE_SIZE);
+
+            for (let r = top; r <= bottom; r++) {
+                for (let c = left; c <= right; c++) {
+                    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                        let tile = map[r][c];
+                        // Solid brick (1) or concrete (2) are impassable
+                        if (tile === 1 || tile === 2) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function isLadder(x, y) {
+            let cx = Math.floor((x + TILE_SIZE / 2) / TILE_SIZE);
+            let cy = Math.floor((y + TILE_SIZE / 2) / TILE_SIZE);
+            if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
+                return map[cy][cx] === 3;
+            }
+            return false;
+        }
+
+        function isBar(x, y) {
+            let cx = Math.floor((x + TILE_SIZE / 2) / TILE_SIZE);
+            let cy = Math.floor((y + TILE_SIZE / 2) / TILE_SIZE);
+            if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
+                return map[cy][cx] === 4;
+            }
+            return false;
+        }
+
+        function isSolidBelow(x, y) {
+            let cx = Math.floor((x + TILE_SIZE / 2) / TILE_SIZE);
+            let cy = Math.floor((y + TILE_SIZE + 2) / TILE_SIZE);
+            if (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) {
+                let tile = map[cy][cx];
+                return tile === 1 || tile === 2;
+            }
+            return false;
+        }
+
+        function checkCollisionBox(x1, y1, x2, y2) {
+            return Math.abs(x1 - x2) < TILE_SIZE * 0.75 && Math.abs(y1 - y2) < TILE_SIZE * 0.75;
+        }
+
+        function playerDeath() {
+            sfx.die();
+            lives--;
+            updateHUD();
+            if (lives <= 0) {
+                gameState = 'GAMEOVER';
+                showOverlay("GAME OVER", `You ran out of lives. Final Score: ${score}`, "TRY AGAIN");
+            } else {
+                resetPlayerPosition();
+            }
+        }
+
+        function resetPlayerPosition() {
+            player.x = 2 * TILE_SIZE;
+            player.y = (ROWS - 3) * TILE_SIZE;
+            player.vx = 0;
+            player.vy = 0;
+        }
+
+        function updateHUD() {
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('gold-display').innerText = `${goldCollected}/${goldTotal}`;
+            document.getElementById('lives-display').innerText = lives;
+            document.getElementById('level-display').innerText = currentLevelIndex + 1;
+        }
+
+        // --- Render Loop ---
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Map Tiles
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let tile = map[r][c];
+                    let x = c * TILE_SIZE;
+                    let y = r * TILE_SIZE;
+
+                    if (tile === 1) {
+                        // Diggable Brick
+                        ctx.fillStyle = '#b45309';
+                        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = '#d97706';
+                        ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+                        // Brick pattern lines
+                        ctx.fillStyle = '#78350f';
+                        ctx.fillRect(x + 2, y + 4, TILE_SIZE - 4, 2);
+                        ctx.fillRect(x + 2, y + 14, TILE_SIZE - 4, 2);
+                    } else if (tile === 2) {
+                        // Unbreakable Concrete
+                        ctx.fillStyle = '#334155';
+                        ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = '#64748b';
+                        ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+                        ctx.fillStyle = '#1e293b';
+                        ctx.fillRect(x + 4, y + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                    } else if (tile === 3) {
+                        // Ladder
+                        ctx.fillStyle = '#06b6d4';
+                        ctx.fillRect(x + 4, y, 3, TILE_SIZE);
+                        ctx.fillRect(x + TILE_SIZE - 7, y, 3, TILE_SIZE);
+                        ctx.fillRect(x + 4, y + 4, TILE_SIZE - 8, 3);
+                        ctx.fillRect(x + 4, y + 14, TILE_SIZE - 8, 3);
+                    } else if (tile === 4) {
+                        // Hand-hold Bar / Rope
+                        ctx.fillStyle = '#ec4899';
+                        ctx.fillRect(x, y + 4, TILE_SIZE, 3);
+                    } else if (tile === 5) {
+                        // Gold Bar
+                        ctx.fillStyle = '#facc15';
+                        ctx.beginPath();
+                        ctx.roundRect(x + 4, y + 7, TILE_SIZE - 8, TILE_SIZE - 14, 3);
+                        ctx.fill();
+                        ctx.strokeStyle = '#ca8a04';
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw Digged Holes indicator
+            diggedHoles.forEach(h => {
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(h.x * TILE_SIZE, h.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                // Timer visual shrinking bar
+                ctx.fillStyle = '#ef4444';
+                let barWidth = (h.timer / 240) * TILE_SIZE;
+                ctx.fillRect(h.x * TILE_SIZE, h.y * TILE_SIZE + TILE_SIZE - 3, barWidth, 3);
+            });
+
+            // Draw Guards (Red Runner)
+            guards.forEach(g => {
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(g.x + TILE_SIZE / 2, g.y + 6, 6, 0, Math.PI * 2);
+                ctx.fill();
+                // Guard Body
+                ctx.fillStyle = '#b91c1c';
+                ctx.fillRect(g.x + 6, g.y + 12, TILE_SIZE - 12, TILE_SIZE - 12);
+            });
+
+            // Draw Player (Cyan Runner)
+            ctx.fillStyle = '#22d3ee';
+            ctx.beginPath();
+            ctx.arc(player.x + TILE_SIZE / 2, player.y + 6, 6, 0, Math.PI * 2);
+            ctx.fill();
+            // Player Body
+            ctx.fillStyle = '#0891b2';
+            ctx.fillRect(player.x + 6, player.y + 12, TILE_SIZE - 12, TILE_SIZE - 12);
+            // Visor / eyes
+            ctx.fillStyle = '#ffffff';
+            let eyeOffset = player.facing === 1 ? 12 : 6;
+            ctx.fillRect(player.x + eyeOffset, player.y + 5, 4, 3);
+        }
+    </script>
+</body>
+</html>
