@@ -1,0 +1,3159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Super Mario Kart — SNES Mode 7 Split-Screen Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700&family=Inter:wght@400;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #090b10;
+      font-family: 'Inter', sans-serif;
+      color: #ffffff;
+    }
+    .font-arcade {
+      font-family: 'Press Start 2P', monospace;
+    }
+    .font-racing {
+      font-family: 'Chakra Petch', sans-serif;
+    }
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .btn-arcade {
+      position: relative;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.55), 0 8px 18px rgba(0, 0, 0, 0.45);
+    }
+    .btn-arcade:hover:not(:disabled) {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+    }
+    .btn-arcade:active:not(:disabled) {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.6), 0 4px 8px rgba(0, 0, 0, 0.4);
+    }
+    .snes-panel {
+      background: linear-gradient(160deg, rgba(16, 20, 34, 0.94), rgba(9, 12, 20, 0.96));
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+    }
+    .metallic-badge {
+      background: linear-gradient(180deg, #fff6c2 0%, #f5c842 45%, #b88214 55%, #ffe680 100%);
+      color: #1c1302;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+    .snes-text-shadow {
+      text-shadow: 2px 2px 0 #000000, -1px -1px 0 #000000, 1px -1px 0 #000000, -1px 1px 0 #000000;
+    }
+    .snes-item-frame {
+      background: #18181b;
+      border: 3px solid #000000;
+      box-shadow: inset 0 0 0 2px #d4d4d8, inset 0 0 0 4px #52525b, 3px 3px 0 rgba(0,0,0,0.75);
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.05);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.25);
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Main Viewport Container -->
+  <div id="appRoot" class="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
+    <!-- Primary 60 FPS SNES Mode-7 Split-Screen Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Persistent Top-Left / Top-Right System Controls -->
+    <div id="globalTopBar" class="fixed top-2.5 left-2.5 z-50 flex items-center gap-1.5">
+      <button id="btnPauseRace" title="Pausar Carrera"
+        class="hidden btn-arcade px-2.5 py-1.5 rounded-lg bg-slate-900/90 border-2 border-white/30 text-[11px] font-bold text-white flex items-center gap-1">
+        <span>⏸️</span>
+        <span class="hidden sm:inline">Pausa</span>
+      </button>
+      <button id="btnToggleTouch" title="Alternar controles táctiles"
+        class="btn-arcade px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-white/25 text-[11px] font-bold text-slate-200 flex items-center gap-1">
+        <span>🎮</span>
+        <span class="hidden md:inline">Táctil</span>
+      </button>
+      <button id="btnToggleControlsModal" title="Controles y Reglas"
+        class="btn-arcade px-2.5 py-1.5 rounded-lg bg-slate-900/90 border border-white/25 text-[11px] font-bold text-slate-200 flex items-center gap-1">
+        <span>❓</span>
+        <span class="hidden md:inline">Guía</span>
+      </button>
+      <button id="btnToggleAudio" title="Activar / Silenciar sonido"
+        class="btn-arcade px-2.5 py-1.5 rounded-lg bg-amber-400 border border-amber-200 text-[11px] font-extrabold text-slate-950 flex items-center gap-1">
+        <span id="audioIcon">🔊</span>
+        <span id="audioLabel" class="hidden md:inline">ON</span>
+      </button>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 1: TITLE SCREEN (PORTADA INTERACTIVA PAL SNES)                 -->
+    <!-- ===================================================================== -->
+    <section id="screenTitle" class="fixed inset-0 z-30 flex flex-col justify-between items-center p-4 sm:p-6 pointer-events-none">
+      <div class="w-full max-w-5xl flex items-center justify-end pointer-events-auto">
+        <div class="flex items-center gap-2 bg-black/80 border border-white/25 px-3 py-1 rounded-full">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+          <span class="text-[10px] sm:text-xs font-extrabold tracking-widest text-slate-200 uppercase ml-1">SNES MODE 7 • SPLIT-SCREEN</span>
+        </div>
+      </div>
+
+      <div class="flex flex-col items-center text-center my-auto pointer-events-auto max-w-3xl w-full">
+        <canvas id="logoCanvas" class="w-full max-w-[640px] h-auto drop-shadow-[0_14px_24px_rgba(0,0,0,0.9)]"></canvas>
+
+        <div class="mt-2 px-5 py-2 rounded-2xl bg-slate-950/90 border-2 border-cyan-400/70 shadow-xl flex items-center gap-3">
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <p class="font-racing italic font-bold text-sm sm:text-lg md:text-xl tracking-wide text-cyan-300">
+            «Cuando las carreras se convierten en una aventura»
+          </p>
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full max-w-2xl px-2">
+          <button data-mode="quick"
+            class="mode-select-btn btn-arcade rounded-2xl p-4 bg-gradient-to-b from-red-500 to-red-700 border-2 border-red-300 text-left flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">🏁</span>
+              <span class="text-[10px] font-arcade bg-black/45 px-2 py-1 rounded-lg text-amber-300">1 PISTA</span>
+            </div>
+            <div class="mt-3">
+              <div class="font-racing font-bold text-lg sm:text-xl uppercase tracking-wide text-white">Carrera Rápida</div>
+              <div class="text-xs text-red-100 mt-0.5">Modo 7 pantalla dividida contra 7 rivales.</div>
+            </div>
+          </button>
+
+          <button data-mode="gp"
+            class="mode-select-btn btn-arcade rounded-2xl p-4 bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-yellow-200 text-left flex flex-col justify-between text-slate-950">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">🏆</span>
+              <span class="text-[10px] font-arcade bg-black/20 px-2 py-1 rounded-lg text-slate-950">3 PISTAS</span>
+            </div>
+            <div class="mt-3">
+              <div class="font-racing font-bold text-lg sm:text-xl uppercase tracking-wide">Copa Champiñón</div>
+              <div class="text-xs text-slate-900 font-semibold mt-0.5">Torneo clásico por puntos y trofeo.</div>
+            </div>
+          </button>
+
+          <button data-mode="timetrial"
+            class="mode-select-btn btn-arcade rounded-2xl p-4 bg-gradient-to-b from-blue-500 to-blue-700 border-2 border-cyan-300 text-left flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-2xl">⏱️</span>
+              <span class="text-[10px] font-arcade bg-black/45 px-2 py-1 rounded-lg text-cyan-200">RÉCORD</span>
+            </div>
+            <div class="mt-3">
+              <div class="font-racing font-bold text-lg sm:text-xl uppercase tracking-wide text-white">Contrarreloj</div>
+              <div class="text-xs text-blue-100 mt-0.5">3 Champiñones y mejores tiempos.</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div class="text-center text-xs sm:text-sm text-slate-200 bg-black/75 px-4 py-1.5 rounded-full border border-white/15 pointer-events-auto">
+        Vista superior en pista 3D + mapa táctico inferior en tiempo real con los <strong class="text-amber-300">8 pilotos</strong>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 2: DRIVER & TRACK SELECTION                                    -->
+    <!-- ===================================================================== -->
+    <section id="screenSelect" class="fixed inset-0 z-30 hidden overflow-y-auto bg-slate-950/85 backdrop-blur-md p-3 sm:p-6">
+      <div class="max-w-6xl mx-auto min-h-full flex flex-col justify-between gap-4 py-2">
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-9 sm:pt-4">
+          <div class="flex items-center gap-3">
+            <button id="btnBackToTitle"
+              class="btn-arcade px-4 py-2 rounded-xl bg-slate-800 border border-white/20 text-sm font-bold text-white">
+              ← Volver
+            </button>
+            <div>
+              <span id="selectedModeBadge" class="metallic-badge text-[10px] font-arcade px-2.5 py-1 rounded-md uppercase">CARRERA RÁPIDA</span>
+              <h2 class="font-racing font-bold text-2xl sm:text-3xl uppercase tracking-wide text-white mt-1">
+                Elige tu Piloto y Circuito
+              </h2>
+            </div>
+          </div>
+          <div id="trophySummary" class="hidden sm:flex items-center gap-2 bg-slate-900/90 border border-amber-400/30 px-3.5 py-2 rounded-xl text-xs">
+            <span class="text-amber-400 text-base">🏆</span>
+            <span id="trophySummaryText" class="text-slate-300 font-semibold">Copa Champiñón: Sin trofeo aún</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+          <!-- Left: 8 Racers Grid -->
+          <div class="lg:col-span-7 snes-panel rounded-3xl p-4 sm:p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-racing font-bold text-lg uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                <span>🏎️</span> Plantilla Oficial (8 Pilotos)
+              </h3>
+              <span id="driverClassTag" class="text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-cyan-300">
+                Clase: Equilibrado
+              </span>
+            </div>
+
+            <div id="driverGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3"></div>
+
+            <!-- Selected Driver Preview & Stats -->
+            <div class="mt-4 pt-3 border-t border-white/10 grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+              <div class="sm:col-span-5 flex items-center gap-3">
+                <div class="shrink-0 bg-slate-950/90 border border-amber-400/40 rounded-2xl p-1.5 flex items-center justify-center shadow-inner">
+                  <canvas id="driverKartPreviewCanvas" width="112" height="104" class="w-24 h-22"></canvas>
+                </div>
+                <div>
+                  <div id="previewDriverName" class="font-racing font-bold text-xl text-white">Mario</div>
+                  <div id="previewDriverDesc" class="text-xs text-slate-300 mt-0.5">
+                    Piloto todoterreno ideal para dominar cualquier curva y derrape.
+                  </div>
+                </div>
+              </div>
+              <div class="sm:col-span-7 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <div class="flex justify-between text-slate-300 mb-1"><span>Velocidad</span><span id="statSpeedVal">4/5</span></div>
+                  <div class="h-2 rounded-full bg-slate-800 overflow-hidden"><div id="statSpeedBar" class="h-full bg-red-500 rounded-full transition-all" style="width:80%"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-slate-300 mb-1"><span>Aceleración</span><span id="statAccelVal">4/5</span></div>
+                  <div class="h-2 rounded-full bg-slate-800 overflow-hidden"><div id="statAccelBar" class="h-full bg-amber-400 rounded-full transition-all" style="width:80%"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-slate-300 mb-1"><span>Manejo</span><span id="statHandleVal">4/5</span></div>
+                  <div class="h-2 rounded-full bg-slate-800 overflow-hidden"><div id="statHandleBar" class="h-full bg-emerald-400 rounded-full transition-all" style="width:80%"></div></div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-slate-300 mb-1"><span>Peso</span><span id="statWeightVal">3/5</span></div>
+                  <div class="h-2 rounded-full bg-slate-800 overflow-hidden"><div id="statWeightBar" class="h-full bg-cyan-400 rounded-full transition-all" style="width:60%"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Track Selection -->
+          <div class="lg:col-span-5 snes-panel rounded-3xl p-4 sm:p-5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-racing font-bold text-lg uppercase tracking-wider text-cyan-300 flex items-center gap-2">
+                  <span>🗺️</span> Selección de Circuito
+                </h3>
+                <span id="trackModeNote" class="text-[11px] text-slate-400">3 Vueltas</span>
+              </div>
+
+              <div id="trackList" class="flex flex-col gap-2.5"></div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-white/10 flex flex-col gap-3">
+              <div class="flex items-center justify-between bg-black/40 px-3.5 py-2 rounded-xl border border-white/10 text-xs">
+                <span class="text-slate-400">Mejor Récord en Pista:</span>
+                <span id="trackBestRecord" class="font-mono font-bold text-amber-300">--:--.--</span>
+              </div>
+
+              <button id="btnStartRace"
+                class="btn-arcade w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-400 via-green-500 to-emerald-600 border-2 border-emerald-200 font-racing font-extrabold text-xl sm:text-2xl uppercase tracking-wider text-slate-950 flex items-center justify-center gap-3">
+                <span>🚦</span>
+                <span>¡ARRANCAR CARRERA!</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 3: AUTHENTIC SNES SPLIT-SCREEN HUD OVERLAY                     -->
+    <!-- ===================================================================== -->
+    <section id="screenHud" class="fixed inset-0 z-20 hidden pointer-events-none">
+      <!-- TOP-RIGHT OF TOP HALF: SNES Item Box + Timer (00' 24"81) -->
+      <div class="fixed top-2.5 right-3 sm:right-5 flex items-center gap-2.5 sm:gap-4">
+        <div id="hudItemBox"
+          class="snes-item-frame w-12 h-12 sm:w-14 sm:h-14 rounded-md flex items-center justify-center relative">
+          <canvas id="itemCanvas" width="48" height="48" class="w-10 h-10 sm:w-12 sm:h-12"></canvas>
+        </div>
+        <div class="flex flex-col items-end">
+          <span id="hudTime" class="font-arcade text-sm sm:text-xl md:text-2xl text-white snes-text-shadow tracking-tight">
+            00' 00"00
+          </span>
+          <span id="hudItemName" class="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-amber-300 snes-text-shadow mt-0.5">
+            SIN ÍTEM
+          </span>
+        </div>
+      </div>
+
+      <!-- BOTTOM-RIGHT OF TOP HALF (Just above the 50% split-screen bar!): Lap, Coins & Big Rank Numeral -->
+      <div class="fixed right-3 sm:right-6 flex items-end gap-3 sm:gap-4" style="bottom: calc(50% + 10px);">
+        <div class="flex flex-col items-end gap-1 font-arcade text-[10px] sm:text-xs text-white snes-text-shadow">
+          <div class="flex items-center gap-1.5">
+            <span class="text-amber-300">🏎️</span>
+            <span>X</span>
+            <span id="hudLap">1/3</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-yellow-300">🪙</span>
+            <span>X</span>
+            <span id="hudCoins">00</span>
+          </div>
+        </div>
+        <!-- Iconic Large SNES Rank Numeral (1..8) -->
+        <div id="hudRankNum" class="font-arcade text-3xl sm:text-5xl text-white snes-text-shadow leading-none">
+          8
+        </div>
+      </div>
+
+      <!-- BOTTOM-LEFT OF TOP HALF: Subtle Drift / Boost Gauge -->
+      <div class="fixed left-3 hidden sm:flex items-center gap-2 bg-black/55 px-2.5 py-1 rounded-lg border border-white/20" style="bottom: calc(50% + 10px);">
+        <span id="hudTrackTitle" class="font-arcade text-[9px] text-amber-300">CIRCUITO MARIO</span>
+        <div class="w-20 h-2 bg-slate-900 rounded overflow-hidden border border-white/25">
+          <div id="hudDriftBar" class="h-full bg-gradient-to-r from-cyan-400 via-amber-400 to-red-500" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- CENTER OF TOP HALF: Countdown & Event Banner -->
+      <div id="hudCenterBanner" class="fixed left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden text-center" style="top: 25%;">
+        <div id="hudCenterBannerText"
+          class="font-arcade text-xl sm:text-3xl md:text-4xl uppercase text-amber-300 snes-text-shadow px-4 py-2">
+          ¡VUELTA FINAL!
+        </div>
+      </div>
+
+      <!-- Adaptive Touch Controls Overlay (Mobile / Tablet or toggled on) -->
+      <div id="touchControlsLayer" class="fixed inset-x-0 bottom-3 px-3 flex justify-between items-end pointer-events-none hidden">
+        <div class="flex gap-2.5 pointer-events-auto">
+          <button id="touchLeft" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-950/80 border-2 border-white/40 active:bg-amber-400 active:text-slate-950 text-xl font-extrabold flex items-center justify-center shadow-lg">
+            ◀
+          </button>
+          <button id="touchRight" class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-950/80 border-2 border-white/40 active:bg-amber-400 active:text-slate-950 text-xl font-extrabold flex items-center justify-center shadow-lg">
+            ▶
+          </button>
+        </div>
+
+        <div class="flex flex-col items-end gap-2 pointer-events-auto">
+          <div class="flex gap-2">
+            <button id="touchItem" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-amber-400/90 border-2 border-white active:scale-95 text-slate-950 font-racing font-extrabold text-[11px] uppercase flex flex-col items-center justify-center shadow-lg">
+              <span class="text-lg leading-none">🎯</span>
+              <span>ÍTEM</span>
+            </button>
+            <button id="touchDrift" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-cyan-400/90 border-2 border-white active:scale-95 text-slate-950 font-racing font-extrabold text-[11px] uppercase flex flex-col items-center justify-center shadow-lg">
+              <span class="text-lg leading-none">🔥</span>
+              <span>SALTO</span>
+            </button>
+          </div>
+          <div class="flex gap-1.5">
+            <button id="touchBrake" class="px-3 py-1.5 rounded-xl bg-red-600/85 border border-red-200 text-[10px] font-bold uppercase text-white">
+              Freno
+            </button>
+            <button id="touchAutoAccel" class="px-2.5 py-1.5 rounded-xl bg-emerald-600/90 border border-emerald-200 text-[10px] font-bold uppercase text-white">
+              Auto-Gas: ON
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 4: PAUSE MODAL                                                 -->
+    <!-- ===================================================================== -->
+    <div id="modalPause" class="fixed inset-0 z-40 hidden bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="snes-panel rounded-3xl max-w-md w-full p-6 text-center">
+        <h2 class="font-racing font-extrabold text-3xl uppercase tracking-wider text-amber-300">Juego en Pausa</h2>
+        <p class="text-xs text-slate-300 mt-1">¿Qué deseas hacer a continuación?</p>
+        <div class="mt-6 flex flex-col gap-3">
+          <button id="btnResumeRace" class="btn-arcade w-full py-3.5 rounded-2xl bg-emerald-500 border-2 border-emerald-200 font-racing font-bold text-lg text-slate-950 uppercase">
+            ▶ Continuar Carrera
+          </button>
+          <button id="btnRestartRace" class="btn-arcade w-full py-3.5 rounded-2xl bg-amber-500 border-2 border-amber-200 font-racing font-bold text-lg text-slate-950 uppercase">
+            🔄 Reiniciar Circuito
+          </button>
+          <button id="btnQuitToMenu" class="btn-arcade w-full py-3.5 rounded-2xl bg-slate-800 border border-white/20 font-racing font-bold text-lg text-white uppercase">
+            🏠 Salir al Menú Principal
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- SCREEN 5: PODIUM & RESULTS SCREEN                                     -->
+    <!-- ===================================================================== -->
+    <section id="screenResults" class="fixed inset-0 z-30 hidden overflow-y-auto bg-slate-950/80 backdrop-blur-md p-4 flex items-center justify-center">
+      <div class="snes-panel rounded-3xl max-w-3xl w-full p-5 sm:p-7 my-auto border-2 border-amber-400/50">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/15 pb-4">
+          <div>
+            <span id="resultsSubtitle" class="metallic-badge text-[10px] font-arcade px-2.5 py-1 rounded uppercase">RESULTADOS FINALES</span>
+            <h2 id="resultsTitle" class="font-racing font-extrabold text-2xl sm:text-4xl uppercase text-white mt-1.5">
+              ¡1.º Puesto — Victoria!
+            </h2>
+          </div>
+          <div class="text-right">
+            <div class="text-xs text-slate-400">Tiempo Total</div>
+            <div id="resultsPlayerTime" class="font-arcade text-lg sm:text-xl text-cyan-300 mt-1">01' 24"50</div>
+            <div id="resultsNewRecordBadge" class="hidden text-[11px] font-bold text-amber-300 mt-1">★ ¡NUEVO RÉCORD!</div>
+          </div>
+        </div>
+
+        <div id="standingsList" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+
+        <div class="mt-6 flex flex-wrap gap-3 justify-end">
+          <button id="btnResultsMenu" class="btn-arcade px-5 py-3 rounded-2xl bg-slate-800 border border-white/20 font-racing font-bold text-base uppercase text-white">
+            🏠 Menú Principal
+          </button>
+          <button id="btnResultsRetry" class="btn-arcade px-5 py-3 rounded-2xl bg-amber-500 border-2 border-amber-200 font-racing font-bold text-base uppercase text-slate-950">
+            🔄 Repetir Pista
+          </button>
+          <button id="btnResultsNext" class="btn-arcade px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-400 to-green-600 border-2 border-emerald-200 font-racing font-extrabold text-base uppercase text-slate-950">
+            Siguiente Carrera ➔
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- CONTROLS & GAMEPLAY GUIDE MODAL                                       -->
+    <!-- ===================================================================== -->
+    <div id="modalGuide" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="snes-panel rounded-3xl max-w-xl w-full p-6 border-2 border-cyan-400/40 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-white/15 pb-3">
+          <h3 class="font-racing font-extrabold text-2xl uppercase text-cyan-300">Guía SNES Mode 7</h3>
+          <button id="btnCloseGuide" class="px-3 py-1 rounded-lg bg-slate-800 text-sm font-bold text-white">✕</button>
+        </div>
+
+        <div class="mt-4 space-y-4 text-xs sm:text-sm text-slate-200">
+          <div class="bg-black/40 p-3.5 rounded-2xl border border-white/10">
+            <h4 class="font-bold text-amber-300 uppercase mb-2">📺 Pantalla Dividida Clásica SNES</h4>
+            <p class="leading-relaxed">
+              La mitad superior muestra la vista 3D detrás de tu kart con el cronómetro, caja de ítems, monedas y posición. La mitad inferior proyecta el <strong class="text-white">mapa completo en perspectiva Modo 7</strong> con los 8 pilotos moviéndose en vivo por todo el trazado.
+            </p>
+          </div>
+
+          <div class="bg-black/40 p-3.5 rounded-2xl border border-white/10">
+            <h4 class="font-bold text-amber-300 uppercase mb-2">⌨️ Controles de Teclado</h4>
+            <ul class="space-y-1.5">
+              <li><strong class="text-white">Flechas / W A S D:</strong> Acelerar, frenar y girar.</li>
+              <li><strong class="text-white">Espacio / Shift:</strong> Saltar y <span class="text-cyan-300 font-semibold">Derrapar</span> en curvas para cargar el <span class="text-amber-300 font-semibold">Mini-Turbo</span>.</li>
+              <li><strong class="text-white">Z / Enter / E:</strong> Lanzar el ítem equipado (mantén Arriba para lanzar plátanos hacia adelante).</li>
+              <li><strong class="text-white">P / Esc:</strong> Pausar la partida.</li>
+            </ul>
+          </div>
+        </div>
+
+        <button id="btnCloseGuideBottom" class="btn-arcade mt-5 w-full py-3 rounded-xl bg-cyan-500 text-slate-950 font-racing font-bold uppercase text-base">
+          ¡Entendido, a correr!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * SUPER MARIO KART — SNES MODE 7 SPLIT-SCREEN ENGINE
+     * Authentic Top-Half Mode-7 Behind-Kart View + Bottom-Half Full-Track Mode-7
+     * Perspective Map with all 8 Animated 16-Bit Character Sprites
+     * ============================================================================
+     */
+
+    // ----------------------------------------------------------------------------
+    // 1. PROCEDURAL ARCADE AUDIO ENGINE (WEB AUDIO API)
+    // ----------------------------------------------------------------------------
+    class ArcadeAudio {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.engineOsc = null;
+        this.engineGain = null;
+        this.driftNoise = null;
+        this.driftGain = null;
+        this.musicTimer = null;
+        this.musicStep = 0;
+      }
+
+      init() {
+        if (this.ctx) {
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+          return;
+        }
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+
+        this.engineOsc = this.ctx.createOscillator();
+        const engineFilter = this.ctx.createBiquadFilter();
+        this.engineGain = this.ctx.createGain();
+        this.engineOsc.type = 'sawtooth';
+        this.engineOsc.frequency.value = 55;
+        engineFilter.type = 'lowpass';
+        engineFilter.frequency.value = 230;
+        this.engineGain.gain.value = 0;
+
+        this.engineOsc.connect(engineFilter);
+        engineFilter.connect(this.engineGain);
+        this.engineGain.connect(this.ctx.destination);
+        this.engineOsc.start();
+
+        const bufferSize = this.ctx.sampleRate * 1.5;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        this.driftNoise = this.ctx.createBufferSource();
+        this.driftNoise.buffer = buffer;
+        this.driftNoise.loop = true;
+
+        const driftFilter = this.ctx.createBiquadFilter();
+        driftFilter.type = 'bandpass';
+        driftFilter.frequency.value = 1100;
+        driftFilter.Q.value = 3.5;
+
+        this.driftGain = this.ctx.createGain();
+        this.driftGain.gain.value = 0;
+
+        this.driftNoise.connect(driftFilter);
+        driftFilter.connect(this.driftGain);
+        this.driftGain.connect(this.ctx.destination);
+        this.driftNoise.start();
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        if (this.muted) {
+          this.stopEngine();
+          this.stopMusic();
+        }
+        return this.muted;
+      }
+
+      updateEngine(speedRatio, isDrifting, active) {
+        if (!this.ctx || !this.engineGain) return;
+        if (this.muted || !active) {
+          this.engineGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+          this.driftGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+          return;
+        }
+        const targetFreq = 48 + speedRatio * 96;
+        this.engineOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.06);
+        this.engineGain.gain.setTargetAtTime(0.04 + speedRatio * 0.03, this.ctx.currentTime, 0.06);
+        this.driftGain.gain.setTargetAtTime(isDrifting && speedRatio > 0.35 ? 0.045 : 0, this.ctx.currentTime, 0.04);
+      }
+
+      stopEngine() {
+        if (!this.ctx || !this.engineGain) return;
+        this.engineGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+        this.driftGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+      }
+
+      playTone(freq, duration, type = 'square', volume = 0.09, delay = 0) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      playCoin() {
+        this.playTone(987.77, 0.08, 'square', 0.09, 0);
+        this.playTone(1318.51, 0.22, 'square', 0.09, 0.07);
+      }
+
+      playBoost() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(520, now + 0.35);
+        gain.gain.setValueAtTime(0.11, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.43);
+      }
+
+      playItemTick() {
+        this.playTone(620 + Math.random() * 240, 0.04, 'triangle', 0.06, 0);
+      }
+
+      playItemGet() {
+        this.playTone(523.25, 0.08, 'square', 0.09, 0);
+        this.playTone(659.25, 0.08, 'square', 0.09, 0.08);
+        this.playTone(783.99, 0.16, 'square', 0.09, 0.16);
+      }
+
+      playShellThrow() {
+        this.playTone(440, 0.08, 'triangle', 0.1, 0);
+        this.playTone(740, 0.12, 'triangle', 0.1, 0.06);
+      }
+
+      playExplosion() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(130, now);
+        osc.frequency.exponentialRampToValueAtTime(28, now + 0.45);
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      }
+
+      playBump() {
+        this.playTone(115, 0.08, 'triangle', 0.1, 0);
+      }
+
+      playCountdown(isGo) {
+        this.playTone(isGo ? 880 : 440, isGo ? 0.35 : 0.18, 'square', 0.11, 0);
+      }
+
+      playLap(isFinal) {
+        const notes = isFinal ? [523, 659, 784, 1046] : [440, 554, 659];
+        notes.forEach((n, idx) => this.playTone(n, 0.12, 'square', 0.09, idx * 0.08));
+      }
+
+      playVictory() {
+        const melody = [
+          { f: 523.25, d: 0.12, t: 0.00 },
+          { f: 659.25, d: 0.12, t: 0.13 },
+          { f: 783.99, d: 0.12, t: 0.26 },
+          { f: 1046.5, d: 0.25, t: 0.39 },
+          { f: 783.99, d: 0.12, t: 0.66 },
+          { f: 1046.5, d: 0.45, t: 0.80 }
+        ];
+        melody.forEach(m => this.playTone(m.f, m.d, 'square', 0.11, m.t));
+      }
+
+      startMusic(theme) {
+        this.stopMusic();
+        if (this.muted) return;
+        this.init();
+        const patterns = {
+          mario: [261.6, 329.6, 392.0, 523.3, 392.0, 329.6, 293.7, 349.2, 440.0, 523.3, 440.0, 349.2],
+          bowser: [130.8, 130.8, 155.6, 164.8, 130.8, 196.0, 185.0, 155.6, 110.0, 130.8, 146.8, 155.6],
+          koopa: [329.6, 392.0, 440.0, 392.0, 329.6, 293.7, 261.6, 293.7, 329.6, 392.0, 493.9, 523.3]
+        };
+        const seq = patterns[theme] || patterns.mario;
+        this.musicStep = 0;
+        this.musicTimer = setInterval(() => {
+          if (this.muted) return;
+          const freq = seq[this.musicStep % seq.length];
+          const wave = theme === 'bowser' ? 'sawtooth' : 'triangle';
+          this.playTone(freq, 0.14, wave, 0.03, 0);
+          this.musicStep++;
+        }, 210);
+      }
+
+      stopMusic() {
+        if (this.musicTimer) {
+          clearInterval(this.musicTimer);
+          this.musicTimer = null;
+        }
+      }
+    }
+
+    const audio = new ArcadeAudio();
+
+    // ----------------------------------------------------------------------------
+    // 2. ALL 8 SNES DRIVERS & 3 CIRCUITS
+    // ----------------------------------------------------------------------------
+    const DRIVERS = [
+      {
+        id: 'mario',
+        name: 'Mario',
+        classLabel: 'Equilibrado',
+        desc: 'Piloto todoterreno ideal para dominar cualquier curva y derrape.',
+        kartColor: '#e62429',
+        kartAccent: '#ffffff',
+        hatColor: '#e62429',
+        shirtColor: '#e62429',
+        overallColor: '#1d4ed8',
+        skinColor: '#ffcca8',
+        hairColor: '#4a2511',
+        emblem: 'M',
+        stats: { speed: 4, accel: 4, handle: 4, weight: 3 },
+        maxSpeedMult: 1.00,
+        accelMult: 1.00,
+        handleMult: 1.00,
+        weight: 1.00
+      },
+      {
+        id: 'luigi',
+        name: 'Luigi',
+        classLabel: 'Equilibrado',
+        desc: 'Gran estabilidad en recta y recuperación ágil en circuitos técnicos.',
+        kartColor: '#1d70b8',
+        kartAccent: '#22c55e',
+        hatColor: '#16a34a',
+        shirtColor: '#16a34a',
+        overallColor: '#1e3a8a',
+        skinColor: '#ffcca8',
+        hairColor: '#4a2511',
+        emblem: 'L',
+        stats: { speed: 4, accel: 4, handle: 4, weight: 3 },
+        maxSpeedMult: 1.00,
+        accelMult: 1.02,
+        handleMult: 0.99,
+        weight: 0.98
+      },
+      {
+        id: 'peach',
+        name: 'Princesa Peach',
+        classLabel: 'Aceleración',
+        desc: 'Arranque fulgurante y recuperación inmediata tras recibir impactos.',
+        kartColor: '#f472b6',
+        kartAccent: '#fde047',
+        hatColor: '#facc15',
+        shirtColor: '#f9a8d4',
+        overallColor: '#ec4899',
+        skinColor: '#ffd6ba',
+        hairColor: '#facc15',
+        emblem: '♛',
+        stats: { speed: 3, accel: 5, handle: 4, weight: 2 },
+        maxSpeedMult: 0.97,
+        accelMult: 1.12,
+        handleMult: 1.04,
+        weight: 0.85
+      },
+      {
+        id: 'bowser',
+        name: 'Bowser',
+        classLabel: 'Pesado',
+        desc: 'Máxima velocidad punta y fuerza imparable en choques laterales.',
+        kartColor: '#374151',
+        kartAccent: '#ef4444',
+        hatColor: '#f97316',
+        shirtColor: '#16a34a',
+        overallColor: '#facc15',
+        skinColor: '#84cc16',
+        hairColor: '#ea580c',
+        emblem: '🔥',
+        stats: { speed: 5, accel: 2, handle: 3, weight: 5 },
+        maxSpeedMult: 1.05,
+        accelMult: 0.88,
+        handleMult: 0.90,
+        weight: 1.30
+      },
+      {
+        id: 'dk',
+        name: 'Donkey Kong',
+        classLabel: 'Pesado',
+        desc: 'Potencia bruta en rectas largas y gran resistencia fuera de pista.',
+        kartColor: '#b91c1c',
+        kartAccent: '#facc15',
+        hatColor: '#78350f',
+        shirtColor: '#78350f',
+        overallColor: '#dc2626',
+        skinColor: '#d97706',
+        hairColor: '#5c2d0c',
+        emblem: 'DK',
+        stats: { speed: 5, accel: 3, handle: 3, weight: 5 },
+        maxSpeedMult: 1.04,
+        accelMult: 0.91,
+        handleMult: 0.92,
+        weight: 1.25
+      },
+      {
+        id: 'yoshi',
+        name: 'Yoshi',
+        classLabel: 'Aceleración',
+        desc: 'Aceleración explosiva y trazada limpia en curvas encadenadas.',
+        kartColor: '#22c55e',
+        kartAccent: '#ffffff',
+        hatColor: '#22c55e',
+        shirtColor: '#22c55e',
+        overallColor: '#f97316',
+        skinColor: '#4ade80',
+        hairColor: '#ef4444',
+        emblem: '🥚',
+        stats: { speed: 3, accel: 5, handle: 4, weight: 2 },
+        maxSpeedMult: 0.97,
+        accelMult: 1.13,
+        handleMult: 1.05,
+        weight: 0.85
+      },
+      {
+        id: 'toad',
+        name: 'Toad',
+        classLabel: 'Ligero',
+        desc: 'Agilidad suprema en giros cerrados y carga rápida de mini-turbo.',
+        kartColor: '#38bdf8',
+        kartAccent: '#facc15',
+        hatColor: '#ffffff',
+        shirtColor: '#2563eb',
+        overallColor: '#ffffff',
+        skinColor: '#ffcca8',
+        hairColor: '#ef4444',
+        emblem: '🍄',
+        stats: { speed: 3, accel: 4, handle: 5, weight: 2 },
+        maxSpeedMult: 0.96,
+        accelMult: 1.08,
+        handleMult: 1.12,
+        weight: 0.80
+      },
+      {
+        id: 'koopa',
+        name: 'Koopa Troopa',
+        classLabel: 'Ligero',
+        desc: 'Control preciso al derrapar y excelente estabilidad en curvas.',
+        kartColor: '#facc15',
+        kartAccent: '#16a34a',
+        hatColor: '#facc15',
+        shirtColor: '#16a34a',
+        overallColor: '#f97316',
+        skinColor: '#fde047',
+        hairColor: '#15803d',
+        emblem: '🐢',
+        stats: { speed: 3, accel: 4, handle: 5, weight: 2 },
+        maxSpeedMult: 0.96,
+        accelMult: 1.07,
+        handleMult: 1.11,
+        weight: 0.82
+      }
+    ];
+
+    const TRACKS = [
+      {
+        id: 'mario_circuit',
+        name: 'Circuito Mario',
+        subtitle: 'Clásico SNES • Hierba verde, escapatorias de tierra y tuberías',
+        difficulty: '★☆☆ Fácil',
+        theme: 'mario',
+        skyTop: '#d4f1f9',
+        skyBottom: '#eef9f0',
+        hillColor: '#269e26',
+        hillHighlight: '#48c738',
+        grassA: '#00a800',
+        grassB: '#009800',
+        dirtA: '#b89878',
+        dirtB: '#ae8e6e',
+        roadA: '#585858',
+        roadB: '#525252',
+        isLava: false,
+        // Closed-loop waypoints in 1024x1024 Mode-7 world (modeled directly after image_53ae3a.png!)
+        waypoints: [
+          { x: 185, y: 540 }, { x: 185, y: 400 }, { x: 185, y: 270 }, { x: 245, y: 215 },
+          { x: 350, y: 215 }, { x: 470, y: 215 }, { x: 600, y: 215 }, { x: 720, y: 225 },
+          { x: 785, y: 295 }, { x: 790, y: 400 }, { x: 840, y: 495 }, { x: 895, y: 610 },
+          { x: 895, y: 745 }, { x: 825, y: 820 }, { x: 710, y: 810 }, { x: 615, y: 710 },
+          { x: 515, y: 650 }, { x: 410, y: 675 }, { x: 330, y: 775 }, { x: 230, y: 795 },
+          { x: 185, y: 700 }
+        ],
+        pipes: [
+          { x: 245, y: 310 }, { x: 265, y: 265 }, { x: 645, y: 165 }, { x: 690, y: 270 },
+          { x: 840, y: 660 }, { x: 510, y: 585 }, { x: 255, y: 690 }
+        ]
+      },
+      {
+        id: 'bowser_castle',
+        name: 'Castillo de Bowser',
+        subtitle: 'Fortaleza de piedra • Ríos de lava incandescente y curvas de 90°',
+        difficulty: '★★★ Difícil',
+        theme: 'bowser',
+        skyTop: '#16090d',
+        skyBottom: '#451214',
+        hillColor: '#2d1a20',
+        hillHighlight: '#4a252d',
+        grassA: '#e03c00', // Glowing lava
+        grassB: '#c82800',
+        dirtA: '#3f3f46',
+        dirtB: '#333338',
+        roadA: '#27272a',
+        roadB: '#222225',
+        isLava: true,
+        waypoints: [
+          { x: 190, y: 560 }, { x: 190, y: 240 }, { x: 440, y: 240 }, { x: 440, y: 380 },
+          { x: 620, y: 380 }, { x: 620, y: 220 }, { x: 845, y: 220 }, { x: 845, y: 540 },
+          { x: 660, y: 540 }, { x: 660, y: 790 }, { x: 420, y: 790 }, { x: 420, y: 650 },
+          { x: 190, y: 650 }
+        ],
+        pipes: [
+          { x: 255, y: 320 }, { x: 525, y: 315 }, { x: 775, y: 465 }, { x: 530, y: 715 }
+        ]
+      },
+      {
+        id: 'koopa_valley',
+        name: 'Valle Koopa',
+        subtitle: 'Cañón aventurero • S-curvas rápidas y paneles turbo',
+        difficulty: '★★☆ Medio',
+        theme: 'koopa',
+        skyTop: '#bae6fd',
+        skyBottom: '#f0f9ff',
+        hillColor: '#b45309',
+        hillHighlight: '#d97706',
+        grassA: '#16a34a',
+        grassB: '#15803d',
+        dirtA: '#d97706',
+        dirtB: '#b45309',
+        roadA: '#64748b',
+        roadB: '#58677c',
+        isLava: false,
+        waypoints: [
+          { x: 180, y: 520 }, { x: 200, y: 260 }, { x: 390, y: 210 }, { x: 550, y: 330 },
+          { x: 710, y: 210 }, { x: 860, y: 290 }, { x: 840, y: 540 }, { x: 700, y: 660 },
+          { x: 790, y: 810 }, { x: 540, y: 820 }, { x: 430, y: 680 }, { x: 230, y: 780 }
+        ],
+        pipes: [
+          { x: 270, y: 310 }, { x: 550, y: 255 }, { x: 760, y: 570 }, { x: 340, y: 690 }
+        ]
+      }
+    ];
+
+    const ITEMS = {
+      red_shell: { id: 'red_shell', name: 'Caparazón Rojo' },
+      green_shell: { id: 'green_shell', name: 'Caparazón Verde' },
+      banana: { id: 'banana', name: 'Cáscara Plátano' },
+      mushroom: { id: 'mushroom', name: 'Champiñón Turbo' },
+      star: { id: 'star', name: 'Estrella Invencible' }
+    };
+    const ITEM_KEYS = Object.keys(ITEMS);
+
+    // ----------------------------------------------------------------------------
+    // 3. MODE-7 1024x1024 TRACK TEXTURE & SURFACE COLLISION MAP BUILDER
+    // ----------------------------------------------------------------------------
+    const MAP_SIZE = 1024;
+    const trackTexCanvas = document.createElement('canvas');
+    trackTexCanvas.width = MAP_SIZE;
+    trackTexCanvas.height = MAP_SIZE;
+    const trackTexCtx = trackTexCanvas.getContext('2d');
+
+    let trackPixels32 = null; // Uint32Array view of 1024x1024 track texture for ultra-fast Mode-7 scanlines
+    const surfaceGrid = new Uint8Array(MAP_SIZE * MAP_SIZE); // 0=grass, 1=dirt, 2=curb, 3=asphalt, 4=turbo, 5=lava
+    let smoothSpline = []; // Dense closed-loop centerline points [{x, y, tx, ty}]
+
+    function buildDenseSpline(waypoints) {
+      const pts = [];
+      const n = waypoints.length;
+      const subdivisions = 16;
+      for (let i = 0; i < n; i++) {
+        const p0 = waypoints[(i - 1 + n) % n];
+        const p1 = waypoints[i];
+        const p2 = waypoints[(i + 1) % n];
+        const p3 = waypoints[(i + 2) % n];
+
+        for (let s = 0; s < subdivisions; s++) {
+          const t = s / subdivisions;
+          const t2 = t * t;
+          const t3 = t2 * t;
+          // Catmull-Rom closed spline interpolation
+          const x = 0.5 * (
+            (2 * p1.x) +
+            (-p0.x + p2.x) * t +
+            (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 +
+            (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3
+          );
+          const y = 0.5 * (
+            (2 * p1.y) +
+            (-p0.y + p2.y) * t +
+            (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 +
+            (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3
+          );
+          pts.push({ x, y, tx: 0, ty: 0 });
+        }
+      }
+      // Compute normalized tangents
+      for (let i = 0; i < pts.length; i++) {
+        const prev = pts[(i - 1 + pts.length) % pts.length];
+        const next = pts[(i + 1) % pts.length];
+        const dx = next.x - prev.x;
+        const dy = next.y - prev.y;
+        const len = Math.hypot(dx, dy) || 1;
+        pts[i].tx = dx / len;
+        pts[i].ty = dy / len;
+      }
+      return pts;
+    }
+
+    function compileMode7Track(trackCfg) {
+      smoothSpline = buildDenseSpline(trackCfg.waypoints);
+
+      const ctx = trackTexCtx;
+      ctx.save();
+
+      // 1. Base Grass / Lava Tiled Ground
+      ctx.fillStyle = trackCfg.grassA;
+      ctx.fillRect(0, 0, MAP_SIZE, MAP_SIZE);
+      ctx.fillStyle = trackCfg.grassB;
+      const tile = 32;
+      for (let ty = 0; ty < MAP_SIZE; ty += tile) {
+        for (let tx = 0; tx < MAP_SIZE; tx += tile) {
+          if (((tx / tile) + (ty / tile)) % 2 === 0) {
+            ctx.fillRect(tx, ty, tile, tile);
+          }
+        }
+      }
+
+      // 2. Rectangular Tan Dirt Track Apron with Multicolor SNES Perimeter Curb (just like image_53ae3a.png!)
+      const apronX = 95, apronY = 125, apronW = 834, apronH = 760;
+      ctx.fillStyle = trackCfg.dirtA;
+      ctx.fillRect(apronX, apronY, apronW, apronH);
+
+      // Subtle SNES dirt grain dots
+      ctx.fillStyle = trackCfg.dirtB;
+      for (let i = 0; i < 1800; i++) {
+        const dx = apronX + ((i * 73) % apronW);
+        const dy = apronY + ((i * 137) % apronH);
+        ctx.fillRect(dx, dy, 4, 4);
+      }
+
+      // Multicolor SNES border around dirt apron
+      const curbColors = ['#e62429', '#ffffff', '#facc15', '#2563eb'];
+      const step = 14;
+      for (let x = apronX; x < apronX + apronW; x += step) {
+        ctx.fillStyle = curbColors[(x / step | 0) % curbColors.length];
+        ctx.fillRect(x, apronY - 8, step, 8);
+        ctx.fillRect(x, apronY + apronH, step, 8);
+      }
+      for (let y = apronY; y < apronY + apronH; y += step) {
+        ctx.fillStyle = curbColors[(y / step | 0) % curbColors.length];
+        ctx.fillRect(apronX - 8, y, 8, step);
+        ctx.fillRect(apronX + apronW, y, 8, step);
+      }
+
+      // Green grass infield islands inside the loop (like image_53ae3a.png!)
+      ctx.fillStyle = trackCfg.grassA;
+      ctx.fillRect(265, 310, 420, 175);
+      ctx.fillRect(390, 485, 295, 110);
+      // Border infield islands with multicolor pixel curbs
+      for (let x = 265; x < 685; x += step) {
+        ctx.fillStyle = curbColors[(x / step | 0) % curbColors.length];
+        ctx.fillRect(x, 304, step, 6);
+        if (x < 390) ctx.fillRect(x, 485, step, 6);
+      }
+      for (let y = 310; y < 485; y += step) {
+        ctx.fillStyle = curbColors[(y / step | 0) % curbColors.length];
+        ctx.fillRect(259, y, 6, step);
+        ctx.fillRect(685, y, 6, step);
+      }
+
+      // Helper to stroke the closed spline path
+      const strokeSpline = (lineWidth, strokeStyle, dash = []) => {
+        ctx.beginPath();
+        ctx.setLineDash(dash);
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = strokeStyle;
+        smoothSpline.forEach((p, idx) => {
+          if (idx === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.closePath();
+        ctx.stroke();
+        ctx.setLineDash([]);
+      };
+
+      // 3. Outer Red/White Striped Road Curbs
+      strokeSpline(104, '#ffffff');
+      strokeSpline(104, '#e62429', [18, 18]);
+
+      // 4. Main Dark Grey Asphalt Road Surface
+      strokeSpline(86, trackCfg.roadA);
+      if (trackCfg.isLava) {
+        strokeSpline(4, 'rgba(255, 102, 0, 0.55)', [22, 16]);
+      }
+
+      // 5. Checkered Start/Finish Line at Spline Index 0
+      const startPt = smoothSpline[0];
+      const startAngle = Math.atan2(startPt.ty, startPt.tx);
+      ctx.save();
+      ctx.translate(startPt.x, startPt.y);
+      ctx.rotate(startAngle);
+      const sq = 7;
+      for (let row = -6; row < 6; row++) {
+        for (let col = -1; col <= 1; col++) {
+          ctx.fillStyle = (row + col) % 2 === 0 ? '#ffffff' : '#111827';
+          ctx.fillRect(col * sq, row * sq, sq, sq);
+        }
+      }
+      ctx.restore();
+
+      // 6. Yellow/Black Turbo Boost Strips along the track
+      race.turboPads = [];
+      [0.22, 0.52, 0.78].forEach((ratio) => {
+        const idx = Math.floor(smoothSpline.length * ratio) % smoothSpline.length;
+        const pt = smoothSpline[idx];
+        const ang = Math.atan2(pt.ty, pt.tx);
+        race.turboPads.push({ x: pt.x, y: pt.y, splineIdx: idx });
+
+        ctx.save();
+        ctx.translate(pt.x, pt.y);
+        ctx.rotate(ang);
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(-14, -22, 28, 44);
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(-8, -16, 6, 32);
+        ctx.fillRect(2, -16, 6, 32);
+        ctx.restore();
+      });
+
+      ctx.restore();
+
+      // 7. Extract 32-bit pixel buffer for Mode-7 scanline renderer & build collision surfaceGrid
+      const imgData = ctx.getImageData(0, 0, MAP_SIZE, MAP_SIZE);
+      trackPixels32 = new Uint32Array(imgData.data.buffer);
+      const raw = imgData.data;
+
+      for (let i = 0; i < MAP_SIZE * MAP_SIZE; i++) {
+        const r = raw[i * 4];
+        const g = raw[i * 4 + 1];
+        const b = raw[i * 4 + 2];
+
+        // Classify surface from rendered RGB
+        if (r > 220 && g > 190 && b < 60) {
+          surfaceGrid[i] = 4; // Turbo pad
+        } else if (Math.abs(r - g) < 18 && Math.abs(g - b) < 18 && r > 30 && r < 120) {
+          surfaceGrid[i] = 3; // Asphalt road
+        } else if (r > 150 && g > 120 && b > 85 && r < 210) {
+          surfaceGrid[i] = 1; // Tan dirt runoff
+        } else if (trackCfg.isLava && r > 180 && g < 90) {
+          surfaceGrid[i] = 5; // Lava
+        } else if (g > r + 35) {
+          surfaceGrid[i] = 0; // Green grass
+        } else {
+          surfaceGrid[i] = 2; // Curb / border
+        }
+      }
+    }
+
+    function getSurfaceAt(wx, wy) {
+      const ix = Math.max(0, Math.min(MAP_SIZE - 1, Math.floor(wx)));
+      const iy = Math.max(0, Math.min(MAP_SIZE - 1, Math.floor(wy)));
+      return surfaceGrid[iy * MAP_SIZE + ix];
+    }
+
+    // ----------------------------------------------------------------------------
+    // 4. RETRO 16-BIT & VECTOR ART RENDERERS (LOGO, PORTRAITS, KARTS, PIPES, HUD)
+    // ----------------------------------------------------------------------------
+    function drawMetallicLogo(canvas) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = 720;
+      const h = 230;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, w, h);
+
+      const draw3DWord = (text, centerX, baseY, fontSize) => {
+        ctx.save();
+        ctx.font = `900 italic ${fontSize}px 'Chakra Petch', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let depth = 12; depth >= 1; depth--) {
+          ctx.fillStyle = depth > 6 ? '#111827' : '#4b5563';
+          ctx.fillText(text, centerX + depth * 0.7, baseY + depth * 1.1);
+        }
+
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = '#090d16';
+        ctx.lineJoin = 'round';
+        ctx.strokeText(text, centerX, baseY);
+
+        const grad = ctx.createLinearGradient(0, baseY - fontSize * 0.55, 0, baseY + fontSize * 0.55);
+        grad.addColorStop(0.00, '#ffffff');
+        grad.addColorStop(0.22, '#fef08a');
+        grad.addColorStop(0.48, '#ca8a04');
+        grad.addColorStop(0.52, '#422006');
+        grad.addColorStop(0.75, '#fde047');
+        grad.addColorStop(1.00, '#ffffff');
+
+        ctx.fillStyle = grad;
+        ctx.fillText(text, centerX, baseY);
+
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+        ctx.strokeText(text, centerX, baseY - 1);
+        ctx.restore();
+      };
+
+      draw3DWord('SUPER', w / 2, 58, 74);
+      draw3DWord('MARIO KART', w / 2, 148, 102);
+
+      // Decorative Red Shell above the 'T'
+      ctx.save();
+      ctx.translate(658, 92);
+      ctx.rotate(-0.35);
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 18, 14, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#111827';
+      ctx.stroke();
+      ctx.fillStyle = '#fef9c3';
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 19, 6, 0, 0, Math.PI);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawDriverPortrait(canvas, driver) {
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const bg = ctx.createRadialGradient(w / 2, h / 2, 6, w / 2, h / 2, w * 0.65);
+      bg.addColorStop(0, driver.kartColor);
+      bg.addColorStop(1, '#0f172a');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.save();
+      ctx.translate(w / 2, h / 2 + 6);
+
+      ctx.fillStyle = driver.kartColor;
+      ctx.strokeStyle = '#090d16';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.roundRect(-26, 14, 52, 18, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      if (driver.id === 'bowser') {
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath();
+        ctx.arc(0, 4, 24, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ea580c';
+        ctx.beginPath();
+        ctx.arc(0, -14, 14, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.ellipse(0, 4, 15, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fefce8';
+        ctx.beginPath();
+        ctx.moveTo(-14, -8); ctx.lineTo(-22, -20); ctx.lineTo(-7, -12); ctx.fill();
+        ctx.moveTo(14, -8); ctx.lineTo(22, -20); ctx.lineTo(7, -12); ctx.fill();
+      } else if (driver.id === 'dk') {
+        ctx.fillStyle = '#78350f';
+        ctx.beginPath();
+        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-6, -20); ctx.lineTo(0, -30); ctx.lineTo(6, -20);
+        ctx.fill();
+        ctx.fillStyle = '#fcd34d';
+        ctx.beginPath();
+        ctx.ellipse(0, 4, 15, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (driver.id === 'yoshi' || driver.id === 'koopa') {
+        ctx.fillStyle = driver.skinColor;
+        ctx.beginPath();
+        ctx.arc(-4, -4, 15, 0, Math.PI * 2);
+        ctx.arc(8, 2, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        if (driver.id === 'yoshi') {
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(-16, -6, 5, 0, Math.PI * 2);
+          ctx.arc(-15, 3, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (driver.id === 'toad') {
+        ctx.fillStyle = '#ffcca8';
+        ctx.beginPath();
+        ctx.arc(0, 6, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(0, -8, 23, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(0, -10, 6, 0, Math.PI * 2);
+        ctx.arc(-14, -7, 4.5, 0, Math.PI * 2);
+        ctx.arc(14, -7, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (driver.id === 'peach') {
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(0, 0, 21, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffd6ba';
+        ctx.beginPath();
+        ctx.arc(0, 3, 14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.moveTo(-9, -12); ctx.lineTo(-11, -23); ctx.lineTo(-4, -17);
+        ctx.lineTo(0, -25); ctx.lineTo(4, -17); ctx.lineTo(11, -23); ctx.lineTo(9, -12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = driver.skinColor;
+        ctx.beginPath();
+        ctx.arc(0, 3, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#291509';
+        ctx.beginPath();
+        ctx.ellipse(0, 8, 10, 4, 0, 0, Math.PI);
+        ctx.fill();
+        ctx.fillStyle = driver.hatColor;
+        ctx.beginPath();
+        ctx.ellipse(0, -9, 18, 11, 0, Math.PI, 0);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(2, -9, 20, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, -13, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = driver.hatColor;
+        ctx.font = 'bold 8px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(driver.emblem, 0, -12.5);
+      }
+
+      ctx.fillStyle = '#111827';
+      ctx.beginPath();
+      ctx.arc(-5, 1, 2.2, 0, Math.PI * 2);
+      ctx.arc(5, 1, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    /**
+     * Renders a crisp 16-bit SNES style rear/3-4 kart sprite for the Top Half view
+     */
+    function drawKartRearSprite(ctx, screenX, screenY, scale, driver, state) {
+      if (scale <= 0.03) return;
+      ctx.save();
+      ctx.translate(screenX, screenY);
+
+      // Ground contact shadow
+      ctx.save();
+      ctx.scale(scale, scale);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+      ctx.beginPath();
+      ctx.ellipse(0, 4, 34, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      const hopOffset = (state.hopY || 0) * scale;
+      ctx.translate(0, -hopOffset);
+      const spinAngle = state.spinTimer > 0 ? state.spinTimer * 14 : 0;
+      const tiltAngle = (state.steer || 0) * 0.12 + (state.driftDir || 0) * 0.15;
+      ctx.rotate(spinAngle + tiltAngle);
+      ctx.scale(scale, scale);
+
+      if (state.starTimer > 0) {
+        const hue = (performance.now() * 0.6) % 360;
+        ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.9)`;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.ellipse(0, -18, 40, 32, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Rear Tires
+      const wheelBounce = Math.sin(state.animPhase || 0) * 1.4;
+      [-26, 26].forEach((wx, idx) => {
+        const wy = -8 + (idx === 0 ? wheelBounce : -wheelBounce);
+        ctx.fillStyle = '#14171f';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.2;
+        ctx.fillRect(wx - 8, wy - 11, 16, 22);
+        ctx.strokeRect(wx - 8, wy - 11, 16, 22);
+        ctx.fillStyle = '#d4d4d8';
+        ctx.fillRect(wx - 3, wy - 3, 6, 6);
+      });
+
+      // Kart Body & White/Chrome Rear Bumper (matching image_53ae3a.png!)
+      ctx.fillStyle = driver.kartColor;
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2.4;
+      ctx.fillRect(-21, -17, 42, 16);
+      ctx.strokeRect(-21, -17, 42, 16);
+
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fillRect(-16, -13, 32, 8);
+      ctx.strokeRect(-16, -13, 32, 8);
+
+      // Twin Exhaust Pipes + Turbo Flames
+      [-11, 11].forEach((ex) => {
+        ctx.fillStyle = '#9ca3af';
+        ctx.fillRect(ex - 3.5, -22, 7, 10);
+        ctx.strokeRect(ex - 3.5, -22, 7, 10);
+
+        if (state.boostTimer > 0) {
+          const flameLen = 14 + Math.random() * 12;
+          ctx.fillStyle = '#facc15';
+          ctx.beginPath();
+          ctx.moveTo(ex - 4, -22);
+          ctx.lineTo(ex, -22 - flameLen);
+          ctx.lineTo(ex + 4, -22);
+          ctx.fill();
+          ctx.fillStyle = '#f97316';
+          ctx.beginPath();
+          ctx.moveTo(ex - 2.5, -22);
+          ctx.lineTo(ex, -22 - flameLen * 0.65);
+          ctx.lineTo(ex + 2.5, -22);
+          ctx.fill();
+        }
+      });
+
+      // Driver Torso / Shell
+      const isHeavy = driver.id === 'bowser' || driver.id === 'dk';
+      if (driver.id === 'bowser') {
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath();
+        ctx.arc(0, -28, 17, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        [[-7, -33], [7, -33], [0, -24]].forEach(([sx, sy]) => {
+          ctx.beginPath();
+          ctx.arc(sx, sy, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      } else if (driver.id === 'koopa') {
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath();
+        ctx.arc(0, -26, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        const tw = isHeavy ? 28 : 22;
+        const th = isHeavy ? 20 : 16;
+        ctx.fillStyle = driver.shirtColor;
+        ctx.fillRect(-tw / 2, -17 - th, tw, th);
+        ctx.strokeRect(-tw / 2, -17 - th, tw, th);
+
+        if (driver.id === 'mario' || driver.id === 'luigi') {
+          ctx.fillStyle = driver.overallColor;
+          ctx.fillRect(-7, -32, 4, 15);
+          ctx.fillRect(3, -32, 4, 15);
+        }
+      }
+
+      // Driver Head & Headgear
+      const headY = isHeavy ? -43 : -37;
+      const headR = isHeavy ? 12 : 10;
+
+      if (driver.id === 'peach') {
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(0, headY, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillRect(-10, headY, 20, 14);
+        ctx.strokeRect(-10, headY, 20, 14);
+      } else if (driver.id === 'toad') {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(0, headY - 2, 15, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(0, headY - 3, 4.5, 0, Math.PI * 2);
+        ctx.arc(-9, headY - 2, 3.2, 0, Math.PI * 2);
+        ctx.arc(9, headY - 2, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (driver.id === 'bowser') {
+        ctx.fillStyle = '#ea580c';
+        ctx.beginPath();
+        ctx.arc(0, headY - 3, 10, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        if (driver.id === 'mario' || driver.id === 'luigi') {
+          ctx.fillStyle = driver.hairColor;
+          ctx.beginPath();
+          ctx.arc(0, headY + 2, headR, 0, Math.PI);
+          ctx.fill();
+          ctx.fillStyle = driver.skinColor;
+          ctx.beginPath();
+          ctx.arc(-headR, headY + 1, 3, 0, Math.PI * 2);
+          ctx.arc(headR, headY + 1, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = driver.hatColor;
+        ctx.beginPath();
+        ctx.arc(0, headY, headR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Victory Fist Pump
+      if (state.victory) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(12, headY - 18, 6, 18);
+        ctx.strokeRect(12, headY - 18, 6, 18);
+        ctx.beginPath();
+        ctx.arc(15, headY - 20, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Drift Sparks
+      if (state.driftCharge > 0) {
+        ctx.fillStyle = state.driftCharge >= 1.15 ? '#f97316' : '#38bdf8';
+        [-28, 28].forEach((sx) => {
+          for (let i = 0; i < 3; i++) {
+            ctx.fillRect(sx + (Math.random() - 0.5) * 14, -4 + (Math.random() - 0.5) * 10, 4, 4);
+          }
+        });
+      }
+
+      ctx.restore();
+    }
+
+    /**
+     * Renders multi-directional 16-bit character-in-kart sprites for the Bottom-Half
+     * Mode-7 Overview Map (matching image_53ae3a.png where DK raises arms, Peach/Mario/Luigi/Toad/Bowser drive along the track!)
+     */
+    function drawMapRacerSprite(ctx, sx, sy, scale, driver, headingAngle, isPlayer) {
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.scale(scale, scale);
+
+      // Determine facing direction: right (+1) or left (-1)
+      const cosA = Math.cos(headingAngle);
+      const facingDir = cosA < -0.15 ? -1 : 1;
+
+      // Ground shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.beginPath();
+      ctx.ellipse(0, 3, 15, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Player indicator triangle overhead
+      if (isPlayer) {
+        const bob = Math.sin(performance.now() * 0.01) * 2;
+        ctx.fillStyle = '#facc15';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-5, -34 + bob);
+        ctx.lineTo(5, -34 + bob);
+        ctx.lineTo(0, -27 + bob);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      ctx.scale(facingDir, 1);
+
+      // Kart side/3-4 profile
+      ctx.fillStyle = driver.kartColor;
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.roundRect(-13, -10, 26, 10, 3);
+      ctx.fill();
+      ctx.stroke();
+
+      // Front & Rear wheels
+      ctx.fillStyle = '#18181b';
+      ctx.beginPath();
+      ctx.arc(-8, 0, 4.5, 0, Math.PI * 2);
+      ctx.arc(8, 0, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Driver torso & head in 16-bit profile
+      ctx.fillStyle = driver.shirtColor;
+      ctx.fillRect(-7, -18, 12, 9);
+      ctx.strokeRect(-7, -18, 12, 9);
+
+      if (driver.id === 'dk') {
+        // DK raising both fists in celebration just like image_53ae3a.png!
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(-11, -24, 4, 10);
+        ctx.fillRect(6, -24, 4, 10);
+        ctx.beginPath();
+        ctx.arc(0, -20, 7.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (driver.id === 'toad') {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(0, -21, 9, 6.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(2, -21, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (driver.id === 'peach') {
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(-1, -20, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (driver.id === 'bowser') {
+        ctx.fillStyle = '#16a34a';
+        ctx.beginPath();
+        ctx.arc(-3, -18, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(4, -21, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        // Mario, Luigi, Yoshi, Koopa
+        ctx.fillStyle = driver.skinColor;
+        ctx.beginPath();
+        ctx.arc(1, -19, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = driver.hatColor;
+        ctx.beginPath();
+        ctx.arc(0, -21, 6.5, Math.PI, 0);
+        ctx.fill();
+        ctx.stroke();
+        // Visor facing right
+        ctx.fillRect(0, -22, 9, 2.5);
+      }
+
+      ctx.restore();
+    }
+
+    function drawWarpPipe(ctx, sx, sy, scale) {
+      if (scale < 0.05) return;
+      const w = 28 * scale;
+      const h = 36 * scale;
+      ctx.save();
+      ctx.translate(sx, sy);
+
+      // Pipe body
+      ctx.fillStyle = '#00a800';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = Math.max(1.2, 2 * scale);
+      ctx.fillRect(-w * 0.42, -h * 0.72, w * 0.84, h * 0.72);
+      ctx.strokeRect(-w * 0.42, -h * 0.72, w * 0.84, h * 0.72);
+
+      // Highlight stripe
+      ctx.fillStyle = '#58f858';
+      ctx.fillRect(-w * 0.25, -h * 0.70, w * 0.16, h * 0.68);
+
+      // Pipe lip
+      ctx.fillStyle = '#00a800';
+      ctx.fillRect(-w * 0.5, -h, w, h * 0.30);
+      ctx.strokeRect(-w * 0.5, -h, w, h * 0.30);
+      ctx.fillStyle = '#58f858';
+      ctx.fillRect(-w * 0.32, -h + 2, w * 0.18, h * 0.24);
+
+      ctx.restore();
+    }
+
+    function drawItemGraphic(ctx, itemKey, cx, cy, radius) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      if (itemKey === 'red_shell' || itemKey === 'green_shell') {
+        const shellCol = itemKey === 'red_shell' ? '#ef4444' : '#22c55e';
+        ctx.fillStyle = shellCol;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.78, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.42, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (itemKey === 'banana') {
+        ctx.fillStyle = '#facc15';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(0, -radius * 0.8);
+        ctx.quadraticCurveTo(radius * 0.85, 0, radius * 0.75, radius * 0.65);
+        ctx.quadraticCurveTo(0, radius * 0.2, -radius * 0.75, radius * 0.65);
+        ctx.quadraticCurveTo(-radius * 0.85, 0, 0, -radius * 0.8);
+        ctx.fill();
+        ctx.stroke();
+      } else if (itemKey === 'mushroom') {
+        ctx.fillStyle = '#fef3c7';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.2;
+        ctx.fillRect(-radius * 0.32, 0, radius * 0.64, radius * 0.6);
+        ctx.strokeRect(-radius * 0.32, 0, radius * 0.64, radius * 0.6);
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.ellipse(0, -radius * 0.12, radius * 0.8, radius * 0.55, 0, Math.PI, 0);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, -radius * 0.32, radius * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (itemKey === 'star') {
+        ctx.fillStyle = '#fde047';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const r = i % 2 === 0 ? radius * 0.85 : radius * 0.38;
+          const a = (i * Math.PI) / 5 - Math.PI / 2;
+          if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+          else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (itemKey === 'coin') {
+        ctx.fillStyle = '#facc15';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, radius * 0.55, radius * 0.78, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#854d0e';
+        ctx.fillRect(-radius * 0.1, -radius * 0.42, radius * 0.2, radius * 0.84);
+      }
+      ctx.restore();
+    }
+
+    // ----------------------------------------------------------------------------
+    // 5. APPLICATION STATE & STORAGE
+    // ----------------------------------------------------------------------------
+    const STORAGE_KEY = 'smk_mode7_snes_save_v2';
+    let saveData = { records: {}, gpTrophy: null };
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) saveData = { ...saveData, ...JSON.parse(raw) };
+    } catch (e) { /* Ignore */ }
+
+    function persistSave() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+      } catch (e) { /* Ignore */ }
+    }
+
+    const appState = {
+      screen: 'title',
+      mode: 'quick',
+      selectedDriverId: 'mario',
+      selectedTrackId: 'mario_circuit',
+      gpIndex: 0,
+      gpStandings: {},
+      touchEnabled: ('ontouchstart' in window) || navigator.maxTouchPoints > 0,
+      autoAccel: true,
+      paused: false
+    };
+
+    const TOTAL_LAPS = 3;
+    let race = {
+      state: 'countdown',
+      countdownTimer: 3.4,
+      lastCountdownInt: 4,
+      elapsedTime: 0,
+      player: null,
+      racers: [],
+      pipes: [],
+      coins: [],
+      itemBoxes: [],
+      turboPads: [],
+      projectiles: [],
+      particles: [],
+      itemRouletteTimer: 0,
+      itemRouletteDisplay: null
+    };
+
+    function findNearestSplineIndex(wx, wy, hintIdx = -1) {
+      const len = smoothSpline.length;
+      if (len === 0) return 0;
+      let bestIdx = 0;
+      let bestDist = Infinity;
+
+      if (hintIdx >= 0) {
+        // Local search window around previous spline index for speed & lap monotonicity
+        for (let offset = -24; offset <= 24; offset++) {
+          const idx = (hintIdx + offset + len) % len;
+          const dx = smoothSpline[idx].x - wx;
+          const dy = smoothSpline[idx].y - wy;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < bestDist) {
+            bestDist = d2;
+            bestIdx = idx;
+          }
+        }
+        if (bestDist < 120 * 120) return bestIdx;
+      }
+
+      for (let i = 0; i < len; i++) {
+        const dx = smoothSpline[i].x - wx;
+        const dy = smoothSpline[i].y - wy;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestDist) {
+          bestDist = d2;
+          bestIdx = i;
+        }
+      }
+      return bestIdx;
+    }
+
+    function initRaceEntities() {
+      const trackCfg = TRACKS.find(t => t.id === appState.selectedTrackId) || TRACKS[0];
+      compileMode7Track(trackCfg);
+
+      const playerDriver = DRIVERS.find(d => d.id === appState.selectedDriverId) || DRIVERS[0];
+      const otherDrivers = DRIVERS.filter(d => d.id !== playerDriver.id);
+      const gridOrder = appState.mode === 'timetrial'
+        ? [playerDriver]
+        : [...otherDrivers, playerDriver];
+
+      const totalPts = smoothSpline.length;
+
+      race.racers = gridOrder.map((drv, idx) => {
+        const isPlayer = drv.id === playerDriver.id;
+        const row = Math.floor(idx / 2);
+        const sideOffset = (idx % 2 === 0 ? -16 : 16);
+        const spawnIdx = (totalPts - (row + 2) * 5 + totalPts) % totalPts;
+        const sp = smoothSpline[spawnIdx];
+        const nx = -sp.ty;
+        const ny = sp.tx;
+
+        return {
+          driver: drv,
+          isPlayer,
+          wx: sp.x + nx * sideOffset,
+          wy: sp.y + ny * sideOffset,
+          angle: Math.atan2(sp.ty, sp.tx),
+          splineIdx: spawnIdx,
+          lap: 1,
+          maxSplineProgress: -(row + 2) * 5,
+          finished: false,
+          finishTime: 0,
+          speed: 0,
+          steer: 0,
+          driftDir: 0,
+          driftCharge: 0,
+          boostTimer: 0,
+          spinTimer: 0,
+          starTimer: 0,
+          hopTimer: 0,
+          coins: 0,
+          item: (isPlayer && appState.mode === 'timetrial') ? 'mushroom' : null,
+          extraMushrooms: (isPlayer && appState.mode === 'timetrial') ? 2 : 0,
+          animPhase: Math.random() * 6,
+          aiSkill: 0.88 + idx * 0.018,
+          aiLaneOffset: sideOffset * 0.9,
+          aiItemCooldown: 3 + Math.random() * 4,
+          rank: idx + 1
+        };
+      });
+
+      race.player = race.racers.find(r => r.isPlayer);
+      race.pipes = trackCfg.pipes.map(p => ({ x: p.x, y: p.y }));
+
+      // Place Item Boxes across 5 checkpoints
+      race.itemBoxes = [];
+      for (let b = 1; b <= 5; b++) {
+        const idx = Math.floor((totalPts / 5.5) * b) % totalPts;
+        const pt = smoothSpline[idx];
+        const nx = -pt.ty;
+        const ny = pt.tx;
+        [-22, -7, 7, 22].forEach(off => {
+          race.itemBoxes.push({ x: pt.x + nx * off, y: pt.y + ny * off, respawnTimer: 0 });
+        });
+      }
+
+      // Place Spinning Gold Coins along the track
+      race.coins = [];
+      for (let c = 1; c <= 28; c++) {
+        const idx = Math.floor((totalPts / 29) * c) % totalPts;
+        const pt = smoothSpline[idx];
+        const nx = -pt.ty;
+        const ny = pt.tx;
+        const off = Math.sin(c * 0.8) * 18;
+        race.coins.push({ x: pt.x + nx * off, y: pt.y + ny * off, respawnTimer: 0 });
+      }
+
+      race.projectiles = [];
+      race.particles = [];
+      race.state = 'countdown';
+      race.countdownTimer = 3.4;
+      race.lastCountdownInt = 4;
+      race.elapsedTime = 0;
+      race.itemRouletteTimer = 0;
+      race.itemRouletteDisplay = null;
+    }
+
+    // ----------------------------------------------------------------------------
+    // 6. INPUT CONTROLS (KEYBOARD + ADAPTIVE TOUCH)
+    // ----------------------------------------------------------------------------
+    const keys = { up: false, down: false, left: false, right: false, drift: false, item: false };
+
+    window.addEventListener('keydown', (e) => {
+      audio.init();
+      const code = e.code;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) {
+        if (appState.screen === 'race') e.preventDefault();
+      }
+      if (code === 'ArrowUp' || code === 'KeyW') keys.up = true;
+      if (code === 'ArrowDown' || code === 'KeyS') keys.down = true;
+      if (code === 'ArrowLeft' || code === 'KeyA') keys.left = true;
+      if (code === 'ArrowRight' || code === 'KeyD') keys.right = true;
+      if (code === 'Space' || code === 'ShiftLeft' || code === 'ShiftRight') keys.drift = true;
+      if (code === 'KeyZ' || code === 'Enter' || code === 'KeyE') {
+        if (!keys.item && appState.screen === 'race' && !appState.paused) {
+          triggerPlayerItem();
+        }
+        keys.item = true;
+      }
+      if ((code === 'KeyP' || code === 'Escape') && appState.screen === 'race') {
+        togglePause();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      const code = e.code;
+      if (code === 'ArrowUp' || code === 'KeyW') keys.up = false;
+      if (code === 'ArrowDown' || code === 'KeyS') keys.down = false;
+      if (code === 'ArrowLeft' || code === 'KeyA') keys.left = false;
+      if (code === 'ArrowRight' || code === 'KeyD') keys.right = false;
+      if (code === 'Space' || code === 'ShiftLeft' || code === 'ShiftRight') keys.drift = false;
+      if (code === 'KeyZ' || code === 'Enter' || code === 'KeyE') keys.item = false;
+    });
+
+    function bindTouchHold(btnId, keyName) {
+      const el = document.getElementById(btnId);
+      if (!el) return;
+      const start = (e) => { e.preventDefault(); audio.init(); keys[keyName] = true; };
+      const end = (e) => { e.preventDefault(); keys[keyName] = false; };
+      el.addEventListener('touchstart', start, { passive: false });
+      el.addEventListener('touchend', end, { passive: false });
+      el.addEventListener('touchcancel', end, { passive: false });
+      el.addEventListener('mousedown', start);
+      el.addEventListener('mouseup', end);
+      el.addEventListener('mouseleave', end);
+    }
+    bindTouchHold('touchLeft', 'left');
+    bindTouchHold('touchRight', 'right');
+    bindTouchHold('touchDrift', 'drift');
+    bindTouchHold('touchBrake', 'down');
+
+    const btnTouchItem = document.getElementById('touchItem');
+    if (btnTouchItem) {
+      const fire = (e) => {
+        e.preventDefault();
+        audio.init();
+        if (appState.screen === 'race' && !appState.paused) triggerPlayerItem();
+      };
+      btnTouchItem.addEventListener('touchstart', fire, { passive: false });
+      btnTouchItem.addEventListener('click', fire);
+    }
+
+    const btnTouchAutoAccel = document.getElementById('touchAutoAccel');
+    if (btnTouchAutoAccel) {
+      btnTouchAutoAccel.addEventListener('click', () => {
+        appState.autoAccel = !appState.autoAccel;
+        btnTouchAutoAccel.textContent = `Auto-Gas: ${appState.autoAccel ? 'ON' : 'OFF'}`;
+      });
+    }
+
+    // ----------------------------------------------------------------------------
+    // 7. ITEMS, PROJECTILES & RACE SIMULATION
+    // ----------------------------------------------------------------------------
+    function spawnParticles(wx, wy, height, color, count, type = 'spark') {
+      for (let i = 0; i < count; i++) {
+        race.particles.push({
+          wx: wx + (Math.random() - 0.5) * 8,
+          wy: wy + (Math.random() - 0.5) * 8,
+          h: height + Math.random() * 6,
+          vx: (Math.random() - 0.5) * 35,
+          vy: (Math.random() - 0.5) * 35,
+          vh: 15 + Math.random() * 35,
+          color,
+          size: (type === 'smoke' ? 5 : 3) + Math.random() * 3,
+          life: 0.35 + Math.random() * 0.3,
+          type
+        });
+      }
+    }
+
+    function useRacerItem(racer, throwForward = false) {
+      if (!racer.item) return;
+      const item = racer.item;
+      racer.item = null;
+
+      if (racer.isPlayer && racer.extraMushrooms > 0) {
+        racer.item = 'mushroom';
+        racer.extraMushrooms--;
+      }
+
+      const fx = Math.cos(racer.angle);
+      const fy = Math.sin(racer.angle);
+
+      if (item === 'mushroom') {
+        racer.boostTimer = 1.45;
+        if (racer.isPlayer) audio.playBoost();
+      } else if (item === 'star') {
+        racer.starTimer = 6.5;
+        racer.boostTimer = 6.5;
+        if (racer.isPlayer) audio.playBoost();
+      } else if (item === 'banana') {
+        const dist = throwForward ? 26 : -20;
+        race.projectiles.push({
+          type: 'banana',
+          owner: racer,
+          wx: racer.wx + fx * dist,
+          wy: racer.wy + fy * dist,
+          vx: 0,
+          vy: 0,
+          life: 28
+        });
+        if (racer.isPlayer) audio.playShellThrow();
+      } else if (item === 'green_shell' || item === 'red_shell') {
+        let target = null;
+        if (item === 'red_shell') {
+          const sorted = [...race.racers].sort((a, b) => b.maxSplineProgress - a.maxSplineProgress);
+          const myIdx = sorted.indexOf(racer);
+          if (myIdx > 0) target = sorted[myIdx - 1];
+        }
+        const shellSpeed = Math.max(racer.speed + 95, 225);
+        race.projectiles.push({
+          type: item,
+          owner: racer,
+          target,
+          wx: racer.wx + fx * 20,
+          wy: racer.wy + fy * 20,
+          vx: fx * shellSpeed,
+          vy: fy * shellSpeed,
+          speed: shellSpeed,
+          life: 7.5
+        });
+        if (racer.isPlayer) audio.playShellThrow();
+      }
+    }
+
+    function triggerPlayerItem() {
+      const p = race.player;
+      if (!p || race.state !== 'racing') return;
+      if (race.itemRouletteTimer > 0) {
+        race.itemRouletteTimer = 0.05;
+        return;
+      }
+      if (p.item) useRacerItem(p, keys.up);
+    }
+
+    function hitRacer(racer, isBigExplosion = false) {
+      if (racer.starTimer > 0 || racer.spinTimer > 0) return;
+      racer.spinTimer = isBigExplosion ? 1.3 : 0.9;
+      racer.speed *= 0.25;
+      racer.driftCharge = 0;
+      racer.driftDir = 0;
+      racer.coins = Math.max(0, racer.coins - 3);
+
+      if (isBigExplosion) {
+        spawnParticles(racer.wx, racer.wy, 8, '#facc15', 12, 'explosion');
+        spawnParticles(racer.wx, racer.wy, 10, '#f97316', 10, 'explosion');
+        if (racer.isPlayer || Math.hypot(racer.wx - race.player.wx, racer.wy - race.player.wy) < 220) {
+          audio.playExplosion();
+        }
+      } else {
+        spawnParticles(racer.wx, racer.wy, 6, '#fde047', 8, 'spark');
+        if (racer.isPlayer) audio.playBump();
+      }
+    }
+
+    function showCenterBanner(text, duration = 1.5) {
+      const el = document.getElementById('hudCenterBanner');
+      const txt = document.getElementById('hudCenterBannerText');
+      txt.textContent = text;
+      el.classList.remove('hidden');
+      clearTimeout(el._hideTimeout);
+      el._hideTimeout = setTimeout(() => el.classList.add('hidden'), duration * 1000);
+    }
+
+    function updateRace(dt) {
+      if (appState.paused) return;
+
+      const trackCfg = TRACKS.find(t => t.id === appState.selectedTrackId) || TRACKS[0];
+      const p = race.player;
+      const totalPts = smoothSpline.length;
+
+      if (race.state === 'countdown') {
+        race.countdownTimer -= dt;
+        const ceilVal = Math.ceil(race.countdownTimer);
+        if (ceilVal < race.lastCountdownInt && ceilVal >= 1) {
+          race.lastCountdownInt = ceilVal;
+          showCenterBanner(`${ceilVal}`, 0.85);
+          audio.playCountdown(false);
+        }
+        if (race.countdownTimer <= 0) {
+          race.state = 'racing';
+          showCenterBanner('¡YA!', 1.0);
+          audio.playCountdown(true);
+          audio.startMusic(trackCfg.theme);
+          if (keys.up || (appState.touchEnabled && appState.autoAccel)) {
+            p.boostTimer = 1.1;
+            audio.playBoost();
+          }
+        }
+        audio.updateEngine(0, false, false);
+        return;
+      }
+
+      if (race.state === 'racing') race.elapsedTime += dt;
+
+      if (race.itemRouletteTimer > 0) {
+        race.itemRouletteTimer -= dt;
+        if (Math.random() < 0.35) {
+          race.itemRouletteDisplay = ITEM_KEYS[Math.floor(Math.random() * ITEM_KEYS.length)];
+          audio.playItemTick();
+        }
+        if (race.itemRouletteTimer <= 0) {
+          let pool = ['green_shell', 'banana', 'mushroom'];
+          if (p.rank >= 5) pool = ['red_shell', 'mushroom', 'star', 'red_shell'];
+          else if (p.rank >= 2) pool = ['red_shell', 'green_shell', 'mushroom', 'banana'];
+          p.item = pool[Math.floor(Math.random() * pool.length)];
+          race.itemRouletteDisplay = p.item;
+          audio.playItemGet();
+        }
+      }
+
+      const baseTopSpeed = 165; // world units / second on 1024x1024 Mode-7 plane
+
+      race.racers.forEach((racer) => {
+        if (racer.boostTimer > 0) racer.boostTimer = Math.max(0, racer.boostTimer - dt);
+        if (racer.spinTimer > 0) racer.spinTimer = Math.max(0, racer.spinTimer - dt);
+        if (racer.starTimer > 0) racer.starTimer = Math.max(0, racer.starTimer - dt);
+        if (racer.hopTimer > 0) racer.hopTimer = Math.max(0, racer.hopTimer - dt);
+
+        const coinMult = 1 + Math.min(racer.coins, 10) * 0.015;
+        const boostMult = racer.starTimer > 0 ? 1.32 : (racer.boostTimer > 0 ? 1.28 : 1.0);
+        const topSpeed = baseTopSpeed * racer.driver.maxSpeedMult * coinMult * boostMult;
+
+        if (racer.isPlayer && race.state === 'racing') {
+          const wantsAccel = keys.up || (appState.touchEnabled && appState.autoAccel && !keys.down);
+          const wantsBrake = keys.down;
+
+          if (racer.spinTimer <= 0) {
+            if (wantsAccel) {
+              racer.speed += 115 * racer.driver.accelMult * dt;
+            } else if (wantsBrake) {
+              racer.speed -= 140 * dt;
+            } else {
+              racer.speed -= 65 * dt;
+            }
+          }
+
+          const steerInput = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+          const speedFactor = Math.min(Math.abs(racer.speed) / 95, 1);
+
+          if (keys.drift && speedFactor > 0.45 && racer.spinTimer <= 0) {
+            if (racer.driftDir === 0 && steerInput !== 0) {
+              racer.driftDir = steerInput;
+              racer.hopTimer = 0.22;
+            }
+            if (racer.driftDir !== 0) {
+              const turnRate = (racer.driftDir * 1.45 + steerInput * 0.75) * racer.driver.handleMult;
+              racer.angle += turnRate * dt;
+              racer.steer = racer.driftDir * 0.8 + steerInput * 0.3;
+              racer.driftCharge += dt;
+              if (Math.random() < 0.45) {
+                spawnParticles(racer.wx, racer.wy, 2, 'rgba(255,255,255,0.8)', 1, 'smoke');
+              }
+            }
+          } else {
+            if (racer.driftDir !== 0 && racer.driftCharge >= 1.15 && racer.spinTimer <= 0) {
+              racer.boostTimer = Math.max(racer.boostTimer, 1.05);
+              audio.playBoost();
+            }
+            racer.driftDir = 0;
+            racer.driftCharge = 0;
+
+            if (racer.spinTimer <= 0) {
+              racer.angle += steerInput * 2.15 * speedFactor * racer.driver.handleMult * dt;
+              racer.steer += (steerInput - racer.steer) * Math.min(1, dt * 10);
+            }
+          }
+
+          audio.updateEngine(Math.min(racer.speed / baseTopSpeed, 1.25), racer.driftDir !== 0, true);
+        } else {
+          // AI Path Following along smoothSpline
+          const lookAheadIdx = (racer.splineIdx + 10) % totalPts;
+          const targetPt = smoothSpline[lookAheadIdx];
+          const nx = -targetPt.ty;
+          const ny = targetPt.tx;
+          const goalX = targetPt.x + nx * racer.aiLaneOffset;
+          const goalY = targetPt.y + ny * racer.aiLaneOffset;
+
+          const desiredAngle = Math.atan2(goalY - racer.wy, goalX - racer.wx);
+          let angleDiff = desiredAngle - racer.angle;
+          while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+          racer.angle += Math.max(-2.6 * dt, Math.min(2.6 * dt, angleDiff * 4.5));
+          racer.steer = Math.max(-1, Math.min(1, angleDiff * 2));
+
+          const aiTargetSpeed = racer.isPlayer
+            ? baseTopSpeed * 0.72
+            : topSpeed * racer.aiSkill * (0.94 + Math.sin(race.elapsedTime * 1.4 + racer.rank) * 0.05);
+
+          if (racer.spinTimer <= 0) {
+            if (racer.speed < aiTargetSpeed) racer.speed += 105 * racer.driver.accelMult * dt;
+            else racer.speed -= 60 * dt;
+          }
+
+          if (!racer.isPlayer && racer.item && race.state === 'racing') {
+            racer.aiItemCooldown -= dt;
+            if (racer.aiItemCooldown <= 0) {
+              useRacerItem(racer, false);
+              racer.aiItemCooldown = 4 + Math.random() * 5;
+            }
+          }
+        }
+
+        // Surface speed modifiers (Asphalt vs Tan Dirt vs Grass vs Turbo Pad vs Lava!)
+        const surf = getSurfaceAt(racer.wx, racer.wy);
+        if (surf === 4 && racer.boostTimer < 0.8) {
+          racer.boostTimer = 1.05;
+          if (racer.isPlayer) audio.playBoost();
+        } else if (racer.starTimer <= 0) {
+          if (surf === 1 && racer.speed > topSpeed * 0.74) {
+            // Tan dirt runoff slows moderately (just like SNES Mario Circuit!)
+            racer.speed -= 120 * dt;
+          } else if (surf === 0 && racer.speed > topSpeed * 0.56) {
+            // Green grass slows heavily
+            racer.speed -= 160 * dt;
+          } else if (surf === 5) {
+            // Lava hazard in Bowser's Castle
+            if (racer.speed > topSpeed * 0.45) racer.speed -= 180 * dt;
+            if (Math.random() < 0.3) spawnParticles(racer.wx, racer.wy, 4, '#ff5500', 1, 'spark');
+          }
+        }
+
+        racer.speed = Math.max(0, Math.min(racer.speed, topSpeed * 1.15));
+        racer.wx += Math.cos(racer.angle) * racer.speed * dt;
+        racer.wy += Math.sin(racer.angle) * racer.speed * dt;
+        racer.animPhase += racer.speed * dt * 0.25;
+
+        // World boundary clamp
+        racer.wx = Math.max(24, Math.min(MAP_SIZE - 24, racer.wx));
+        racer.wy = Math.max(24, Math.min(MAP_SIZE - 24, racer.wy));
+
+        // Pipe obstacle collisions
+        race.pipes.forEach((pipe) => {
+          const dx = racer.wx - pipe.x;
+          const dy = racer.wy - pipe.y;
+          const dist = Math.hypot(dx, dy);
+          const minDist = 14;
+          if (dist < minDist && dist > 0.01) {
+            racer.wx = pipe.x + (dx / dist) * minDist;
+            racer.wy = pipe.y + (dy / dist) * minDist;
+            racer.speed *= 0.65;
+            if (racer.isPlayer) audio.playBump();
+          }
+        });
+
+        // Update Spline Progress & Lap Counter
+        const prevIdx = racer.splineIdx;
+        const newIdx = findNearestSplineIndex(racer.wx, racer.wy, prevIdx);
+        racer.splineIdx = newIdx;
+
+        // Detect crossing start/finish line forward (from high index > 80% to low index < 20%)
+        if (prevIdx > totalPts * 0.8 && newIdx < totalPts * 0.2) {
+          racer.lap++;
+          if (racer.isPlayer && race.state === 'racing') {
+            if (racer.lap === TOTAL_LAPS) {
+              showCenterBanner('¡VUELTA FINAL!', 1.8);
+              audio.playLap(true);
+            } else if (racer.lap < TOTAL_LAPS) {
+              showCenterBanner(`VUELTA ${racer.lap} / ${TOTAL_LAPS}`, 1.4);
+              audio.playLap(false);
+            }
+          }
+          if (racer.lap > TOTAL_LAPS && !racer.finished) {
+            racer.finished = true;
+            racer.finishTime = race.elapsedTime;
+            if (racer.isPlayer && race.state === 'racing') finishPlayerRace();
+          }
+        } else if (prevIdx < totalPts * 0.2 && newIdx > totalPts * 0.8) {
+          racer.lap--;
+        }
+
+        racer.maxSplineProgress = (racer.lap - 1) * totalPts + newIdx;
+      });
+
+      // Kart-to-Kart Collisions
+      for (let i = 0; i < race.racers.length; i++) {
+        for (let j = i + 1; j < race.racers.length; j++) {
+          const a = race.racers[i];
+          const b = race.racers[j];
+          const dx = a.wx - b.wx;
+          const dy = a.wy - b.wy;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 15 && dist > 0.01) {
+            if (a.starTimer > 0 && b.starTimer <= 0) { hitRacer(b, false); continue; }
+            if (b.starTimer > 0 && a.starTimer <= 0) { hitRacer(a, false); continue; }
+
+            const overlap = (15 - dist) * 0.5;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            a.wx += nx * overlap;
+            a.wy += ny * overlap;
+            b.wx -= nx * overlap;
+            b.wy -= ny * overlap;
+            spawnParticles((a.wx + b.wx) * 0.5, (a.wy + b.wy) * 0.5, 5, '#fde047', 4, 'spark');
+            if (a.isPlayer || b.isPlayer) audio.playBump();
+          }
+        }
+      }
+
+      // Update Rank Standings (1st to 8th)
+      const sorted = [...race.racers].sort((a, b) => {
+        if (a.finished && b.finished) return a.finishTime - b.finishTime;
+        if (a.finished) return -1;
+        if (b.finished) return 1;
+        return b.maxSplineProgress - a.maxSplineProgress;
+      });
+      sorted.forEach((r, idx) => { r.rank = idx + 1; });
+
+      // Coins & Item Boxes pickup
+      race.coins.forEach((coin) => {
+        if (coin.respawnTimer > 0) { coin.respawnTimer -= dt; return; }
+        race.racers.forEach((r) => {
+          if (Math.hypot(r.wx - coin.x, r.wy - coin.y) < 15) {
+            coin.respawnTimer = 6;
+            r.coins = Math.min(10, r.coins + 1);
+            if (r.isPlayer) audio.playCoin();
+          }
+        });
+      });
+
+      race.itemBoxes.forEach((box) => {
+        if (box.respawnTimer > 0) { box.respawnTimer -= dt; return; }
+        race.racers.forEach((r) => {
+          if (Math.hypot(r.wx - box.x, r.wy - box.y) < 16) {
+            box.respawnTimer = 4.5;
+            if (r.isPlayer) {
+              if (!r.item && race.itemRouletteTimer <= 0) race.itemRouletteTimer = 1.4;
+            } else if (!r.item) {
+              r.item = ITEM_KEYS[Math.floor(Math.random() * ITEM_KEYS.length)];
+            }
+          }
+        });
+      });
+
+      // Projectiles update
+      for (let i = race.projectiles.length - 1; i >= 0; i--) {
+        const proj = race.projectiles[i];
+        proj.life -= dt;
+        if (proj.life <= 0) { race.projectiles.splice(i, 1); continue; }
+
+        if (proj.type === 'green_shell' || proj.type === 'red_shell') {
+          if (proj.type === 'red_shell' && proj.target && !proj.target.finished) {
+            const desired = Math.atan2(proj.target.wy - proj.wy, proj.target.wx - proj.wx);
+            proj.vx = Math.cos(desired) * proj.speed;
+            proj.vy = Math.sin(desired) * proj.speed;
+          }
+          proj.wx += proj.vx * dt;
+          proj.wy += proj.vy * dt;
+          if (proj.wx < 20 || proj.wx > MAP_SIZE - 20) proj.vx = -proj.vx;
+          if (proj.wy < 20 || proj.wy > MAP_SIZE - 20) proj.vy = -proj.vy;
+        }
+
+        let hit = false;
+        for (const r of race.racers) {
+          if (r === proj.owner && proj.life > (proj.type === 'banana' ? 27.4 : 7.1)) continue;
+          if (Math.hypot(r.wx - proj.wx, r.wy - proj.wy) < 15) {
+            hitRacer(r, proj.type !== 'banana');
+            hit = true;
+            break;
+          }
+        }
+        if (hit) race.projectiles.splice(i, 1);
+      }
+
+      // Particles update
+      for (let i = race.particles.length - 1; i >= 0; i--) {
+        const pt = race.particles[i];
+        pt.life -= dt;
+        if (pt.life <= 0) { race.particles.splice(i, 1); continue; }
+        pt.wx += pt.vx * dt;
+        pt.wy += pt.vy * dt;
+        pt.h += pt.vh * dt;
+      }
+
+      if (race.state === 'finished' && Math.random() < 0.45) {
+        const colors = ['#ef4444', '#facc15', '#22c55e', '#38bdf8', '#ec4899'];
+        spawnParticles(
+          p.wx + (Math.random() - 0.5) * 90,
+          p.wy + (Math.random() - 0.5) * 90,
+          28,
+          colors[Math.floor(Math.random() * colors.length)],
+          2,
+          'confetti'
+        );
+      }
+    }
+
+    function finishPlayerRace() {
+      race.state = 'finished';
+      audio.stopEngine();
+      audio.stopMusic();
+      audio.playVictory();
+      showCenterBanner('¡META!', 2.2);
+
+      const p = race.player;
+      const trackId = appState.selectedTrackId;
+      const prevBest = saveData.records[trackId];
+      const isNewRecord = !prevBest || p.finishTime < prevBest;
+      if (isNewRecord) {
+        saveData.records[trackId] = p.finishTime;
+        persistSave();
+      }
+
+      const gpPointsTable = [9, 6, 3, 1, 0, 0, 0, 0];
+      const sorted = [...race.racers].sort((a, b) => a.rank - b.rank);
+      sorted.forEach((r, idx) => {
+        if (!r.finished) {
+          r.finished = true;
+          r.finishTime = p.finishTime + (idx - (p.rank - 1)) * 1.35 + Math.random() * 0.6;
+        }
+        if (appState.mode === 'gp') {
+          appState.gpStandings[r.driver.id] = (appState.gpStandings[r.driver.id] || 0) + (gpPointsTable[idx] || 0);
+        }
+      });
+
+      setTimeout(() => {
+        if (appState.screen === 'race') openResultsScreen(isNewRecord);
+      }, 2600);
+    }
+
+    // ----------------------------------------------------------------------------
+    // 8. AUTHENTIC SNES MODE-7 SPLIT-SCREEN RENDERER (TOP + BOTTOM HALF)
+    // ----------------------------------------------------------------------------
+    const gameCanvas = document.getElementById('gameCanvas');
+    const gCtx = gameCanvas.getContext('2d');
+
+    // Internal crisp SNES resolution buffer (512 x 448 = 2x native 256 x 224 SNES Mode 7)
+    const INT_W = 512;
+    const INT_H = 448;
+    const DIVIDER_H = 6;
+    const TOP_H = (INT_H - DIVIDER_H) / 2;   // 221 px
+    const BOT_TOP = TOP_H + DIVIDER_H;       // 227 px
+    const BOT_H = INT_H - BOT_TOP;           // 221 px
+
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = INT_W;
+    offCanvas.height = INT_H;
+    const offCtx = offCanvas.getContext('2d');
+    const frameImgData = offCtx.createImageData(INT_W, INT_H);
+    const frameBuf32 = new Uint32Array(frameImgData.data.buffer);
+
+    function resizeGameCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      gameCanvas.width = window.innerWidth * dpr;
+      gameCanvas.height = window.innerHeight * dpr;
+      gCtx.imageSmoothingEnabled = false;
+    }
+    window.addEventListener('resize', resizeGameCanvas);
+    resizeGameCanvas();
+
+    function packABGR(hex) {
+      const n = parseInt(hex.slice(1), 16);
+      const r = (n >> 16) & 255;
+      const g = (n >> 8) & 255;
+      const b = n & 255;
+      return (255 << 24) | (b << 16) | (g << 8) | r;
+    }
+
+    let demoSplineIdx = 0;
+
+    function renderMode7SplitScreen() {
+      const trackCfg = TRACKS.find(t => t.id === appState.selectedTrackId) || TRACKS[0];
+      if (!trackPixels32) compileMode7Track(trackCfg);
+
+      // Determine camera position & heading (active player or live Title demo)
+      let camX, camY, camAngle;
+      if (appState.screen === 'race' && race.player) {
+        const p = race.player;
+        camAngle = p.angle;
+        // Place camera 42 world units behind the player's kart so the kart sits clearly in the lower-center of the Top Half!
+        camX = p.wx - Math.cos(camAngle) * 42;
+        camY = p.wy - Math.sin(camAngle) * 42;
+      } else {
+        demoSplineIdx = (demoSplineIdx + 0.35) % smoothSpline.length;
+        const pt = smoothSpline[Math.floor(demoSplineIdx)];
+        camAngle = Math.atan2(pt.ty, pt.tx);
+        camX = pt.x - Math.cos(camAngle) * 42;
+        camY = pt.y - Math.sin(camAngle) * 42;
+      }
+
+      const fx = Math.cos(camAngle);
+      const fy = Math.sin(camAngle);
+      const rx = -fy;
+      const ry = fx;
+
+      const horizonY = 58;
+      const camHeight = 26;
+      const focalLength = 215;
+
+      const outGrass32 = packABGR(trackCfg.grassA);
+
+      // 1. SCANLINE MODE-7 GROUND PROJECTION FOR TOP HALF (y = horizonY .. TOP_H - 1)
+      for (let sy = horizonY; sy < TOP_H; sy++) {
+        const dy = sy - horizonY + 1;
+        const dist = (camHeight * focalLength) / dy;
+        const stepScale = dist / focalLength;
+
+        const rowStartX = camX + fx * dist - rx * (INT_W * 0.5) * stepScale;
+        const rowStartY = camY + fy * dist - ry * (INT_W * 0.5) * stepScale;
+        const stepX = rx * stepScale;
+        const stepY = ry * stepScale;
+
+        let wx = rowStartX;
+        let wy = rowStartY;
+        const rowOffset = sy * INT_W;
+
+        for (let sx = 0; sx < INT_W; sx++) {
+          const ix = wx | 0;
+          const iy = wy | 0;
+          if (ix >= 0 && ix < MAP_SIZE && iy >= 0 && iy < MAP_SIZE) {
+            frameBuf32[rowOffset + sx] = trackPixels32[(iy << 10) + ix];
+          } else {
+            // Tile outer grass seamlessly outside the 1024x1024 track bounds
+            const tx = ((ix % 64) + 64) % 64;
+            const ty = ((iy % 64) + 64) % 64;
+            frameBuf32[rowOffset + sx] = ((tx < 32) ^ (ty < 32)) ? outGrass32 : packABGR(trackCfg.grassB);
+          }
+          wx += stepX;
+          wy += stepY;
+        }
+      }
+
+      // 2. SCANLINE MODE-7 PERSPECTIVE COURSE MAP FOR BOTTOM HALF (y = BOT_TOP .. INT_H - 1)
+      const zNear = 1.0;
+      const zFar = 1.72;
+      const invZFar = 1 / zFar;
+      const invZSpan = (1 / zNear) - invZFar;
+
+      for (let sy = BOT_TOP; sy < INT_H; sy++) {
+        const t = (sy - BOT_TOP) / (BOT_H - 1);
+        const invZ = invZFar + invZSpan * t;
+        const z = 1 / invZ;
+        const v = (zFar - z) / (zFar - zNear); // 0 at top of bottom-screen, 1 at bottom
+        const mapY = Math.max(0, Math.min(MAP_SIZE - 1, (v * (MAP_SIZE - 1)) | 0));
+        const mapRowOffset = mapY << 10;
+
+        const rowHalfW = INT_W * (0.31 + 0.17 * v);
+        const rowOffset = sy * INT_W;
+
+        for (let sx = 0; sx < INT_W; sx++) {
+          const u = ((sx - INT_W * 0.5) / (rowHalfW * 2)) + 0.5;
+          if (u >= 0 && u <= 1) {
+            const mapX = (u * (MAP_SIZE - 1)) | 0;
+            frameBuf32[rowOffset + sx] = trackPixels32[mapRowOffset + mapX];
+          } else {
+            const tx = ((sx % 32) + 32) % 32;
+            const ty = ((sy % 32) + 32) % 32;
+            frameBuf32[rowOffset + sx] = ((tx < 16) ^ (ty < 16)) ? outGrass32 : packABGR(trackCfg.grassB);
+          }
+        }
+      }
+
+      // Blit Mode-7 scanline pixel buffer to offscreen canvas
+      offCtx.putImageData(frameImgData, 0, 0);
+
+      // 3. TOP-HALF SKY & PARALLAX SNES GREEN HILLS WITH YELLOW DOTS (image_53ae3a.png)
+      const skyGrad = offCtx.createLinearGradient(0, 0, 0, horizonY);
+      skyGrad.addColorStop(0, trackCfg.skyTop);
+      skyGrad.addColorStop(1, trackCfg.skyBottom);
+      offCtx.fillStyle = skyGrad;
+      offCtx.fillRect(0, 0, INT_W, horizonY);
+
+      const angleShift = -(camAngle / (Math.PI * 2)) * INT_W * 2;
+      offCtx.fillStyle = trackCfg.hillColor;
+      for (let hx = -140; hx < INT_W + 180; hx += 130) {
+        const cx = (((hx + angleShift) % (INT_W + 130)) + (INT_W + 130)) % (INT_W + 130) - 65;
+        offCtx.beginPath();
+        offCtx.arc(cx, horizonY + 14, 58, Math.PI, 0);
+        offCtx.fill();
+
+        // Yellow dots/shrubs on SNES hills (exact match to image_53ae3a.png!)
+        offCtx.fillStyle = trackCfg.isLava ? '#f97316' : '#facc15';
+        offCtx.fillRect(cx - 18, horizonY - 22, 3, 4);
+        offCtx.fillRect(cx + 14, horizonY - 26, 3, 4);
+        offCtx.fillStyle = trackCfg.hillColor;
+      }
+
+      // 4. TOP-HALF 3D BILLBOARDS (Pipes, Coins, Item Boxes, Shells, Bananas, Racers & Player)
+      offCtx.save();
+      offCtx.beginPath();
+      offCtx.rect(0, 0, INT_W, TOP_H);
+      offCtx.clip();
+
+      const billboards = [];
+      const projectBillboard = (ox, oy) => {
+        const dx = ox - camX;
+        const dy = oy - camY;
+        const zCam = dx * fx + dy * fy;
+        if (zCam <= 10 || zCam > 540) return null;
+        const xCam = dx * rx + dy * ry;
+        const scale = focalLength / zCam;
+        const sx = INT_W * 0.5 + xCam * scale;
+        const sy = horizonY + camHeight * scale;
+        if (sx < -60 || sx > INT_W + 60) return null;
+        return { sx, sy, scale, zCam };
+      };
+
+      // Pipes
+      const activePipes = appState.screen === 'race' ? race.pipes : trackCfg.pipes;
+      activePipes.forEach((pipe) => {
+        const p = projectBillboard(pipe.x, pipe.y);
+        if (p) billboards.push({ ...p, kind: 'pipe' });
+      });
+
+      if (appState.screen === 'race') {
+        race.coins.forEach((coin) => {
+          if (coin.respawnTimer <= 0) {
+            const p = projectBillboard(coin.x, coin.y);
+            if (p) billboards.push({ ...p, kind: 'coin', phase: coin.x + coin.y });
+          }
+        });
+        race.itemBoxes.forEach((box) => {
+          if (box.respawnTimer <= 0) {
+            const p = projectBillboard(box.x, box.y);
+            if (p) billboards.push({ ...p, kind: 'box', phase: box.x });
+          }
+        });
+        race.projectiles.forEach((proj) => {
+          const p = projectBillboard(proj.wx, proj.wy);
+          if (p) billboards.push({ ...p, kind: 'proj', proj });
+        });
+        race.racers.forEach((r) => {
+          const p = projectBillboard(r.wx, r.wy);
+          if (p) billboards.push({ ...p, kind: 'racer', racer: r });
+        });
+        race.particles.forEach((pt) => {
+          const p = projectBillboard(pt.wx, pt.wy);
+          if (p) billboards.push({ ...p, kind: 'particle', pt });
+        });
+      }
+
+      // Painter's back-to-front sort by zCam
+      billboards.sort((a, b) => b.zCam - a.zCam);
+
+      billboards.forEach((b) => {
+        const s = b.scale * 0.34;
+        if (b.kind === 'pipe') {
+          drawWarpPipe(offCtx, b.sx, b.sy, s);
+        } else if (b.kind === 'coin') {
+          const r = Math.max(2, 9 * s);
+          const spinW = Math.max(0.22, Math.abs(Math.cos(performance.now() * 0.007 + b.phase)));
+          offCtx.save();
+          offCtx.translate(b.sx, b.sy - r * 1.4);
+          offCtx.scale(spinW, 1);
+          offCtx.fillStyle = '#facc15';
+          offCtx.strokeStyle = '#000000';
+          offCtx.lineWidth = 1.5;
+          offCtx.beginPath();
+          offCtx.arc(0, 0, r, 0, Math.PI * 2);
+          offCtx.fill();
+          offCtx.stroke();
+          offCtx.fillStyle = '#713f12';
+          offCtx.fillRect(-r * 0.16, -r * 0.5, r * 0.32, r);
+          offCtx.restore();
+        } else if (b.kind === 'box') {
+          const sz = Math.max(4, 15 * s);
+          const bob = Math.sin(performance.now() * 0.006 + b.phase) * 2;
+          const hue = (performance.now() * 0.3 + b.phase * 10) % 360;
+          offCtx.save();
+          offCtx.translate(b.sx, b.sy - sz * 0.8 + bob);
+          offCtx.fillStyle = `hsla(${hue}, 90%, 58%, 0.85)`;
+          offCtx.strokeStyle = '#ffffff';
+          offCtx.lineWidth = 1.5;
+          offCtx.fillRect(-sz / 2, -sz / 2, sz, sz);
+          offCtx.strokeRect(-sz / 2, -sz / 2, sz, sz);
+          offCtx.fillStyle = '#ffffff';
+          offCtx.font = `bold ${Math.max(6, Math.round(sz * 0.72))}px monospace`;
+          offCtx.textAlign = 'center';
+          offCtx.textBaseline = 'middle';
+          offCtx.fillText('?', 0, 1);
+          offCtx.restore();
+        } else if (b.kind === 'proj') {
+          const r = Math.max(3, 11 * s);
+          drawItemGraphic(offCtx, b.proj.type, b.sx, b.sy - r * 0.9, r);
+        } else if (b.kind === 'racer') {
+          const r = b.racer;
+          const hopY = r.hopTimer > 0 ? Math.sin((r.hopTimer / 0.22) * Math.PI) * 14 : 0;
+          drawKartRearSprite(offCtx, b.sx, b.sy, s * 0.78, r.driver, {
+            steer: r.steer,
+            driftDir: r.driftDir,
+            driftCharge: r.driftCharge,
+            boostTimer: r.boostTimer,
+            spinTimer: r.spinTimer,
+            starTimer: r.starTimer,
+            hopY,
+            animPhase: r.animPhase,
+            victory: r.finished && r.isPlayer
+          });
+        } else if (b.kind === 'particle') {
+          const pr = Math.max(1.5, b.pt.size * s * 0.7);
+          offCtx.fillStyle = b.pt.color;
+          offCtx.fillRect(b.sx - pr / 2, b.sy - b.pt.h * s - pr / 2, pr, pr);
+        }
+      });
+
+      offCtx.restore();
+
+      // 5. SOLID BLACK HORIZONTAL SPLIT-SCREEN DIVIDER BAR
+      offCtx.fillStyle = '#000000';
+      offCtx.fillRect(0, TOP_H, INT_W, DIVIDER_H);
+
+      // 6. BOTTOM-HALF MODE-7 COURSE OVERVIEW SPRITES (ALL 8 RACERS IN LIVE MOTION!)
+      offCtx.save();
+      offCtx.beginPath();
+      offCtx.rect(0, BOT_TOP, INT_W, BOT_H);
+      offCtx.clip();
+
+      const mapRacers = (appState.screen === 'race' && race.racers.length)
+        ? race.racers
+        : DRIVERS.map((drv, idx) => {
+            const sIdx = Math.floor((demoSplineIdx + idx * (smoothSpline.length / 8)) % smoothSpline.length);
+            const pt = smoothSpline[sIdx];
+            return {
+              driver: drv,
+              wx: pt.x,
+              wy: pt.y,
+              angle: Math.atan2(pt.ty, pt.tx),
+              isPlayer: idx === 0
+            };
+          });
+
+      // Project & depth-sort all 8 racers on the Bottom-Half Mode-7 course map
+      const projectedMapRacers = mapRacers.map((r) => {
+        const u = r.wx / MAP_SIZE;
+        const v = r.wy / MAP_SIZE;
+        const z = zFar - v * (zFar - zNear);
+        const invZ = 1 / z;
+        const t = (invZ - invZFar) / invZSpan;
+        const sy = BOT_TOP + t * (BOT_H - 1);
+        const rowHalfW = INT_W * (0.31 + 0.17 * v);
+        const sx = INT_W * 0.5 + (u - 0.5) * (rowHalfW * 2);
+        const sprScale = 0.72 + 0.34 * v;
+        return { r, sx, sy, sprScale };
+      }).sort((a, b) => a.sy - b.sy);
+
+      projectedMapRacers.forEach(({ r, sx, sy, sprScale }) => {
+        drawMapRacerSprite(offCtx, sx, sy, sprScale, r.driver, r.angle, r.isPlayer);
+      });
+
+      offCtx.restore();
+
+      // 7. BLIT CRISP SNES FRAMEBUFFER TO MAIN DISPLAY CANVAS
+      gCtx.imageSmoothingEnabled = false;
+      gCtx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+      gCtx.drawImage(offCanvas, 0, 0, gameCanvas.width, gameCanvas.height);
+    }
+
+    // ----------------------------------------------------------------------------
+    // 9. SNES HUD UPDATER (00' 24"81 FORMAT, ITEM BOX, COINS & RANK NUMERAL)
+    // ----------------------------------------------------------------------------
+    const itemCanvas = document.getElementById('itemCanvas');
+    const itemCtx = itemCanvas.getContext('2d');
+
+    function formatSnesTime(sec) {
+      const mins = Math.floor(sec / 60);
+      const secs = Math.floor(sec % 60);
+      const hundredths = Math.floor((sec % 1) * 100);
+      return `${String(mins).padStart(2, '0')}' ${String(secs).padStart(2, '0')}"${String(hundredths).padStart(2, '0')}`;
+    }
+
+    function updateHud() {
+      if (appState.screen !== 'race' || !race.player) return;
+      const p = race.player;
+
+      document.getElementById('hudRankNum').textContent = p.rank;
+      document.getElementById('hudLap').textContent = `${Math.min(p.lap, TOTAL_LAPS)}/${TOTAL_LAPS}`;
+      document.getElementById('hudCoins').textContent = String(p.coins).padStart(2, '0');
+      document.getElementById('hudTime').textContent = formatSnesTime(race.elapsedTime);
+
+      const driftPct = Math.min(100, Math.round((p.driftCharge / 1.15) * 100));
+      document.getElementById('hudDriftBar').style.width = `${p.boostTimer > 0 ? 100 : driftPct}%`;
+
+      itemCtx.clearRect(0, 0, itemCanvas.width, itemCanvas.height);
+      const shownKey = race.itemRouletteTimer > 0 ? race.itemRouletteDisplay : p.item;
+      const itemLabel = document.getElementById('hudItemName');
+      if (shownKey && ITEMS[shownKey]) {
+        drawItemGraphic(itemCtx, shownKey, 24, 24, 19);
+        itemLabel.textContent = race.itemRouletteTimer > 0 ? 'RULETA...' : ITEMS[shownKey].name;
+      } else {
+        // Classic SNES gold coin icon inside item frame when slot is empty (matching image_53ae3a.png!)
+        drawItemGraphic(itemCtx, 'coin', 24, 24, 17);
+        itemLabel.textContent = 'VACÍO';
+      }
+    }
+
+    // ----------------------------------------------------------------------------
+    // 10. SCREEN NAVIGATION & SELECTION UI
+    // ----------------------------------------------------------------------------
+    function switchScreen(target) {
+      appState.screen = target;
+      document.getElementById('screenTitle').classList.toggle('hidden', target !== 'title');
+      document.getElementById('screenSelect').classList.toggle('hidden', target !== 'select');
+      document.getElementById('screenHud').classList.toggle('hidden', target !== 'race');
+      document.getElementById('screenResults').classList.toggle('hidden', target !== 'results');
+      document.getElementById('btnPauseRace').classList.toggle('hidden', target !== 'race');
+
+      const touchLayer = document.getElementById('touchControlsLayer');
+      if (target === 'race' && appState.touchEnabled) {
+        touchLayer.classList.remove('hidden');
+      } else {
+        touchLayer.classList.add('hidden');
+      }
+    }
+
+    function renderSelectionUI() {
+      const modeNames = {
+        quick: 'CARRERA RÁPIDA',
+        gp: 'COPA CHAMPIÑÓN (3 PISTAS)',
+        timetrial: 'CONTRARRELOJ'
+      };
+      document.getElementById('selectedModeBadge').textContent = modeNames[appState.mode] || 'CARRERA';
+
+      const trophyEl = document.getElementById('trophySummaryText');
+      if (saveData.gpTrophy) {
+        trophyEl.textContent = `Copa Champiñón: Trofeo ${saveData.gpTrophy} obtenido`;
+      }
+
+      const grid = document.getElementById('driverGrid');
+      grid.innerHTML = '';
+      DRIVERS.forEach((drv) => {
+        const selected = drv.id === appState.selectedDriverId;
+        const card = document.createElement('button');
+        card.className = `btn-arcade rounded-2xl p-2 flex flex-col items-center border-2 transition-all ${
+          selected
+            ? 'bg-amber-400/25 border-amber-300 scale-[1.03]'
+            : 'bg-slate-900/80 border-white/10 hover:border-white/35'
+        }`;
+        const pCanvas = document.createElement('canvas');
+        pCanvas.width = 76;
+        pCanvas.height = 76;
+        pCanvas.className = 'w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden';
+        drawDriverPortrait(pCanvas, drv);
+
+        const label = document.createElement('span');
+        label.className = `mt-1.5 font-racing font-bold text-xs sm:text-sm truncate w-full text-center ${
+          selected ? 'text-amber-300' : 'text-white'
+        }`;
+        label.textContent = drv.name;
+
+        card.appendChild(pCanvas);
+        card.appendChild(label);
+        card.addEventListener('click', () => {
+          audio.init();
+          audio.playCoin();
+          appState.selectedDriverId = drv.id;
+          renderSelectionUI();
+        });
+        grid.appendChild(card);
+      });
+
+      const curDrv = DRIVERS.find(d => d.id === appState.selectedDriverId) || DRIVERS[0];
+      document.getElementById('driverClassTag').textContent = `Clase: ${curDrv.classLabel}`;
+      document.getElementById('previewDriverName').textContent = curDrv.name;
+      document.getElementById('previewDriverDesc').textContent = curDrv.desc;
+      document.getElementById('statSpeedVal').textContent = `${curDrv.stats.speed}/5`;
+      document.getElementById('statSpeedBar').style.width = `${curDrv.stats.speed * 20}%`;
+      document.getElementById('statAccelVal').textContent = `${curDrv.stats.accel}/5`;
+      document.getElementById('statAccelBar').style.width = `${curDrv.stats.accel * 20}%`;
+      document.getElementById('statHandleVal').textContent = `${curDrv.stats.handle}/5`;
+      document.getElementById('statHandleBar').style.width = `${curDrv.stats.handle * 20}%`;
+      document.getElementById('statWeightVal').textContent = `${curDrv.stats.weight}/5`;
+      document.getElementById('statWeightBar').style.width = `${curDrv.stats.weight * 20}%`;
+
+      const trackList = document.getElementById('trackList');
+      trackList.innerHTML = '';
+      const isGp = appState.mode === 'gp';
+      document.getElementById('trackModeNote').textContent = isGp ? 'Orden Copa (3 pistas)' : '3 Vueltas';
+
+      TRACKS.forEach((trk, idx) => {
+        const selected = isGp ? idx === 0 : trk.id === appState.selectedTrackId;
+        const btn = document.createElement('button');
+        btn.disabled = isGp;
+        btn.className = `btn-arcade w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between ${
+          selected
+            ? 'bg-cyan-500/20 border-cyan-300'
+            : 'bg-slate-900/75 border-white/10 hover:border-white/30'
+        }`;
+        btn.innerHTML = `
+          <div>
+            <div class="font-racing font-bold text-base sm:text-lg text-white">
+              ${isGp ? `${idx + 1}. ` : ''}${trk.name}
+            </div>
+            <div class="text-[11px] text-slate-300 mt-0.5">${trk.subtitle}</div>
+          </div>
+          <span class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-black/50 text-amber-300 shrink-0 ml-2">
+            ${trk.difficulty}
+          </span>
+        `;
+        btn.addEventListener('click', () => {
+          audio.init();
+          audio.playItemTick();
+          appState.selectedTrackId = trk.id;
+          compileMode7Track(trk);
+          renderSelectionUI();
+        });
+        trackList.appendChild(btn);
+      });
+
+      const activeTrackId = isGp ? TRACKS[0].id : appState.selectedTrackId;
+      const best = saveData.records[activeTrackId];
+      document.getElementById('trackBestRecord').textContent = best ? formatSnesTime(best) : '--\' --"--';
+    }
+
+    function startRaceSession() {
+      appState.paused = false;
+      document.getElementById('modalPause').classList.add('hidden');
+      if (appState.mode === 'gp') {
+        appState.selectedTrackId = TRACKS[appState.gpIndex].id;
+      }
+      const trk = TRACKS.find(t => t.id === appState.selectedTrackId) || TRACKS[0];
+      document.getElementById('hudTrackTitle').textContent = trk.name.toUpperCase();
+
+      initRaceEntities();
+      switchScreen('race');
+    }
+
+    function togglePause() {
+      if (appState.screen !== 'race') return;
+      appState.paused = !appState.paused;
+      document.getElementById('modalPause').classList.toggle('hidden', !appState.paused);
+      if (appState.paused) audio.stopEngine();
+    }
+
+    function openResultsScreen(isNewRecord) {
+      switchScreen('results');
+      const p = race.player;
+      const isGpFinal = appState.mode === 'gp' && appState.gpIndex >= TRACKS.length - 1;
+
+      document.getElementById('resultsSubtitle').textContent = isGpFinal
+        ? 'CLASIFICACIÓN FINAL DE LA COPA CHAMPIÑÓN'
+        : `RESULTADOS — ${(TRACKS.find(t => t.id === appState.selectedTrackId) || TRACKS[0]).name.toUpperCase()}`;
+
+      document.getElementById('resultsTitle').textContent =
+        p.rank === 1 ? '¡1.º Puesto — Victoria!' : `${p.rank}.º Puesto — Carrera Completada`;
+
+      document.getElementById('resultsPlayerTime').textContent = formatSnesTime(p.finishTime);
+      document.getElementById('resultsNewRecordBadge').classList.toggle('hidden', !isNewRecord);
+
+      const list = document.getElementById('standingsList');
+      list.innerHTML = '';
+
+      const displayOrder = isGpFinal
+        ? [...race.racers].sort((a, b) => (appState.gpStandings[b.driver.id] || 0) - (appState.gpStandings[a.driver.id] || 0))
+        : [...race.racers].sort((a, b) => a.rank - b.rank);
+
+      if (isGpFinal) {
+        const playerGpPos = displayOrder.findIndex(r => r.isPlayer) + 1;
+        if (playerGpPos <= 3) {
+          saveData.gpTrophy = playerGpPos === 1 ? 'Oro' : playerGpPos === 2 ? 'Plata' : 'Bronce';
+          persistSave();
+        }
+      }
+
+      displayOrder.forEach((r, idx) => {
+        const pos = idx + 1;
+        const pts = appState.gpStandings[r.driver.id] || 0;
+        const row = document.createElement('div');
+        row.className = `flex items-center justify-between px-3.5 py-2 rounded-xl border ${
+          r.isPlayer
+            ? 'bg-amber-400/20 border-amber-300 text-white'
+            : 'bg-slate-900/80 border-white/10 text-slate-200'
+        }`;
+        row.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <span class="font-racing font-extrabold text-base w-6 ${pos === 1 ? 'text-amber-300' : 'text-slate-400'}">${pos}.º</span>
+            <span class="w-3 h-3 rounded-full" style="background:${r.driver.kartColor}"></span>
+            <span class="font-bold text-sm">${r.driver.name} ${r.isPlayer ? '(Tú)' : ''}</span>
+          </div>
+          <span class="font-mono text-xs ${r.isPlayer ? 'text-amber-300 font-bold' : 'text-slate-400'}">
+            ${appState.mode === 'gp' ? `${pts} PTS` : formatSnesTime(r.finishTime)}
+          </span>
+        `;
+        list.appendChild(row);
+      });
+
+      const btnNext = document.getElementById('btnResultsNext');
+      if (appState.mode === 'gp' && appState.gpIndex < TRACKS.length - 1) {
+        btnNext.classList.remove('hidden');
+        btnNext.textContent = `Siguiente Pista (${appState.gpIndex + 2}/${TRACKS.length}) ➔`;
+      } else {
+        btnNext.classList.add('hidden');
+      }
+    }
+
+    // ----------------------------------------------------------------------------
+    // 11. EVENT LISTENERS & 60 FPS MAIN LOOP
+    // ----------------------------------------------------------------------------
+    document.querySelectorAll('.mode-select-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        audio.init();
+        audio.playCoin();
+        appState.mode = btn.dataset.mode;
+        appState.gpIndex = 0;
+        appState.gpStandings = {};
+        renderSelectionUI();
+        switchScreen('select');
+      });
+    });
+
+    document.getElementById('btnBackToTitle').addEventListener('click', () => {
+      audio.playItemTick();
+      switchScreen('title');
+    });
+
+    document.getElementById('btnStartRace').addEventListener('click', () => {
+      audio.init();
+      audio.playBoost();
+      startRaceSession();
+    });
+
+    document.getElementById('btnPauseRace').addEventListener('click', togglePause);
+    document.getElementById('btnResumeRace').addEventListener('click', togglePause);
+    document.getElementById('btnRestartRace').addEventListener('click', startRaceSession);
+
+    const quitToMainMenu = () => {
+      appState.paused = false;
+      document.getElementById('modalPause').classList.add('hidden');
+      audio.stopEngine();
+      audio.stopMusic();
+      switchScreen('title');
+    };
+    document.getElementById('btnQuitToMenu').addEventListener('click', quitToMainMenu);
+    document.getElementById('btnResultsMenu').addEventListener('click', quitToMainMenu);
+
+    document.getElementById('btnResultsRetry').addEventListener('click', startRaceSession);
+    document.getElementById('btnResultsNext').addEventListener('click', () => {
+      appState.gpIndex++;
+      startRaceSession();
+    });
+
+    document.getElementById('btnToggleAudio').addEventListener('click', () => {
+      audio.init();
+      const isMuted = audio.toggleMute();
+      document.getElementById('audioIcon').textContent = isMuted ? '🔇' : '🔊';
+      document.getElementById('audioLabel').textContent = isMuted ? 'OFF' : 'ON';
+      if (!isMuted && appState.screen === 'race' && race.state === 'racing') {
+        const trk = TRACKS.find(t => t.id === appState.selectedTrackId) || TRACKS[0];
+        audio.startMusic(trk.theme);
+      }
+    });
+
+    document.getElementById('btnToggleTouch').addEventListener('click', () => {
+      appState.touchEnabled = !appState.touchEnabled;
+      const touchLayer = document.getElementById('touchControlsLayer');
+      if (appState.screen === 'race' && appState.touchEnabled) {
+        touchLayer.classList.remove('hidden');
+      } else {
+        touchLayer.classList.add('hidden');
+      }
+    });
+
+    const toggleGuide = (show) => document.getElementById('modalGuide').classList.toggle('hidden', !show);
+    document.getElementById('btnToggleControlsModal').addEventListener('click', () => toggleGuide(true));
+    document.getElementById('btnCloseGuide').addEventListener('click', () => toggleGuide(false));
+    document.getElementById('btnCloseGuideBottom').addEventListener('click', () => toggleGuide(false));
+
+    let lastTimestamp = 0;
+    function gameLoop(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05);
+      lastTimestamp = timestamp;
+
+      if (appState.screen === 'race') {
+        updateRace(dt);
+        updateHud();
+      } else if (appState.screen === 'select') {
+        const previewCanvas = document.getElementById('driverKartPreviewCanvas');
+        if (previewCanvas) {
+          const pCtx = previewCanvas.getContext('2d');
+          pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+          const curDrv = DRIVERS.find(d => d.id === appState.selectedDriverId) || DRIVERS[0];
+          drawKartRearSprite(pCtx, previewCanvas.width / 2, previewCanvas.height - 16, 1.45, curDrv, {
+            steer: Math.sin(timestamp * 0.003) * 0.35,
+            driftDir: 0,
+            driftCharge: 0,
+            boostTimer: 0.5,
+            spinTimer: 0,
+            starTimer: 0,
+            hopY: 0,
+            animPhase: timestamp * 0.02,
+            victory: false
+          });
+        }
+      }
+
+      renderMode7SplitScreen();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.onload = () => {
+      drawMetallicLogo(document.getElementById('logoCanvas'));
+      compileMode7Track(TRACKS[0]);
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
